@@ -72,3 +72,25 @@ test("funder creates and funds a bounty, then sees it listed", async ({ page }) 
   await expect(list.getByText("Fix widget overflow on mobile")).toBeVisible();
   await expect(list.getByText("acme/widgets · issue #42")).toBeVisible();
 });
+
+// Phase 2. Runs after the test above (one worker, file order) against the bounty it created.
+// The stub GitHub reports issue #42 closed by merged PR #7; the stub Claude API returns an approval.
+test("the agent detects the merged PR and shows its advisory review", async ({ page }) => {
+  await page.goto("/bounties/1");
+
+  const claim = page.getByTestId("claim");
+  await expect(claim).toContainText("#7 Wrap widgets on narrow screens");
+  await expect(claim).toContainText("@octocat");
+  await expect(claim).toContainText("into main by @maintainer");
+  await expect(claim).toContainText("bbbbbbb");
+
+  const review = page.getByTestId("review");
+  await expect(page.getByTestId("recommendation")).toHaveText("Recommends approval");
+  await expect(review).toContainText("advice only: it cannot release or block a payout");
+  await expect(review).toContainText("Met: Widgets wrap instead of overflowing below 400px");
+  await expect(review).toContainText("confidence 86%");
+  await expect(page.getByTestId("status")).toHaveText("reviewed (advisory)");
+
+  // Money fields are untouched by the review.
+  await expect(page.getByTestId("funded")).toContainText("400 tUSDC of 1,000 tUSDC budget");
+});

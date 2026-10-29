@@ -2,11 +2,13 @@
 
 import type { BountyDto } from "@mba/shared";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { ClaimPanel } from "../../../components/ClaimPanel.tsx";
 import { useConfig } from "../../../components/use-config.ts";
 import { agentApi } from "../../../lib/api.ts";
 import { addressUrl, txUrl, type WebConfig } from "../../../lib/config.ts";
 import { formatExpiry, formatUsdc, shortAddress } from "../../../lib/format.ts";
+import { isPending, STATUS } from "../../../lib/status.ts";
 
 function Hash({ config, value, kind }: { config: WebConfig; value: string; kind: "tx" | "address" }) {
   const href = kind === "tx" ? txUrl(config, value) : addressUrl(config, value);
@@ -20,19 +22,47 @@ function Hash({ config, value, kind }: { config: WebConfig; value: string; kind:
   );
 }
 
+const REFRESH_MS = 5_000;
+
 export default function BountyDetailPage() {
   const cfg = useConfig();
   const { id } = useParams<{ id: string }>();
   const [bounty, setBounty] = useState<BountyDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!cfg.ok) return;
     agentApi(cfg.config.agentUrl)
       .get(Number(id))
-      .then(setBounty)
+      .then((b) => {
+        setBounty(b);
+        setError(null);
+      })
       .catch((e: Error) => setError(e.message));
   }, [cfg, id]);
+
+  useEffect(load, [load]);
+
+  // Keep polling while the agent still has work to do on this bounty.
+  const pending = bounty ? isPending(bounty.status) : false;
+  useEffect(() => {
+    if (!pending) return;
+    const t = setInterval(load, REFRESH_MS);
+    return () => clearInterval(t);
+  }, [pending, load]);
+
+  const checkNow = () => {
+    if (!cfg.ok) return;
+    setChecking(true);
+    setCheckError(null);
+    agentApi(cfg.config.agentUrl)
+      .check(Number(id))
+      .then((r) => setBounty(r.bounty))
+      .catch((e: Error) => setCheckError(e.message))
+      .finally(() => setChecking(false));
+  };
 
   if (!cfg.ok) return <p className="notice err">Configuration error: {cfg.error}</p>;
   if (error) return <p className="notice err">Could not load bounty #{id}: {error}</p>;
@@ -53,7 +83,10 @@ export default function BountyDetailPage() {
           {bounty.repo}#{bounty.issueNumber}
         </a>{" "}
         · bounty #{bounty.id} ·{" "}
-        {expired ? <span className="pill warn">mandate expired</span> : coversPayout ? <span className="pill ok">funded</span> : <span className="pill warn">underfunded</span>}
+        {expired ? <span className="pill warn">mandate expired</span> : coversPayout ? <span className="pill ok">funded</span> : <span className="pill warn">underfunded</span>} ·{" "}
+        <span className={`pill ${STATUS[bounty.status].tone}`} data-testid="status">
+          {STATUS[bounty.status].label}
+        </span>
       </p>
 
       <div className="card">
@@ -98,6 +131,17 @@ export default function BountyDetailPage() {
       <div className="card" style={{ whiteSpace: "pre-wrap" }}>
         {bounty.acceptanceCriteria ?? <span className="lede">Not provided.</span>}
       </div>
+
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+        <h2>Delivered work</h2>
+        {pending && (
+          <button type="button" className="btn secondary" onClick={checkNow} disabled={checking}>
+            {checking ? "Checking…" : "Check GitHub now"}
+          </button>
+        )}
+      </div>
+      {checkError && <p className="notice err">{checkError}</p>}
+      <ClaimPanel bounty={bounty} />
 
       <h2>On-chain</h2>
       <div className="card">

@@ -59,8 +59,10 @@ export type Bounty = z.infer<typeof BountySchema>;
 /** Advisory only. The LLM's verdict never authorizes a payout on its own. */
 export const ReviewVerdictSchema = z.object({
   recommendation: z.enum(["approve", "reject", "needs_human"]),
-  criteriaMet: z.array(z.object({ criterion: z.string(), met: z.boolean(), evidence: z.string() })),
-  summary: z.string().max(2000),
+  criteriaMet: z
+    .array(z.object({ criterion: z.string().min(1).max(500), met: z.boolean(), evidence: z.string().max(1500) }))
+    .min(1),
+  summary: z.string().min(1).max(2000),
   confidence: z.number().min(0).max(1),
 });
 export type ReviewVerdict = z.infer<typeof ReviewVerdictSchema>;

@@ -5,7 +5,7 @@ and **prove** the payout stayed inside the funder's mandate.
 
 > The LLM proposes, the proofs dispose.
 
-Status: Phase 1, creating and funding bounties. Research notes are in [docs/phase-0-findings.md](docs/phase-0-findings.md).
+Status: Phase 2, detecting merged PRs and writing an advisory review. Research notes are in [docs/phase-0-findings.md](docs/phase-0-findings.md).
 
 ## What works
 
@@ -13,6 +13,16 @@ A funder connects a wallet, sets a payout and a mandate (per-payout cap, total b
 allowlist, expiry), and creates and funds the bounty on-chain in one transaction. The agent mirrors
 the vault's state into SQLite and lists the bounty. Every money field comes from chain events and
 never from the request body.
+
+The agent then watches the bounty's GitHub issue. When GitHub records that a merged pull request in
+the same repository closed it, the agent stores that PR as the claim. Claude (`claude-opus-5-5`)
+then reviews the diff against the funder's acceptance criteria and returns a schema-checked verdict:
+approve, reject or needs_human, with evidence for each criterion. The verdict is advice only:
+nothing it says can move or block funds. Status: `open → claimed → reviewed` (or `review_failed`).
+
+Watcher settings (root `.env`): `GITHUB_TOKEN`, or `GITHUB_TOKEN_COMMAND=gh auth token` for local
+dev; `ANTHROPIC_API_KEY` for reviews (without it, claims wait for review); `GITHUB_POLL_INTERVAL_MS`.
+`POST /bounties/:id/check` runs a check immediately.
 
 ## Layout
 

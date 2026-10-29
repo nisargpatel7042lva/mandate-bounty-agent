@@ -120,3 +120,10 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 .pill.warn { background: var(--warn-bg); color: var(--warn); }
 
 .empty { text-align: center; color: var(--muted); padding: 40px 16px; }
+
+.pill.info { background: var(--border); color: var(--text); }
+.pill.err { background: var(--danger-bg); color: var(--danger); }
+.criteria { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+.criteria li { border-left: 3px solid var(--border); padding-left: 10px; }
+.criteria li.met { border-color: var(--ok); }
+.criteria li.unmet { border-color: var(--danger); }

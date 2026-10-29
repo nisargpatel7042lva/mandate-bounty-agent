@@ -12,5 +12,9 @@ export function openDb(file: string): { db: Db; close: () => void } {
   const sqlite = new Database(file);
   sqlite.pragma("journal_mode = WAL");
   sqlite.exec(schema.MIGRATION_SQL);
+  for (const { table, column, ddl } of schema.ADDED_COLUMNS) {
+    const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === column)) sqlite.exec(ddl);
+  }
   return { db: drizzle(sqlite, { schema }), close: () => sqlite.close() };
 }

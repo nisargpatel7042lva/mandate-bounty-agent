@@ -22,7 +22,38 @@ export const bounties = sqliteTable("bounties", {
   createdBlock: integer("created_block").notNull(),
   title: text("title"),
   acceptanceCriteria: text("acceptance_criteria"),
+  /** Workflow position: open -> claimed -> reviewed | review_failed. Never affects money on its own. */
+  status: text("status").$type<BountyStatus>().notNull().default("open"),
+  statusReason: text("status_reason"),
   updatedAt: integer("updated_at").notNull(),
+});
+
+export type BountyStatus = "open" | "claimed" | "reviewed" | "review_failed";
+
+/**
+ * A merged PR that GitHub records as closing the bounty's issue, plus the advisory LLM review
+ * of it. One claim per bounty: the first qualifying close wins.
+ */
+export const claims = sqliteTable("claims", {
+  bountyId: integer("bounty_id").primaryKey(),
+  repo: text("repo").notNull(),
+  prNumber: integer("pr_number").notNull(),
+  prUrl: text("pr_url").notNull(),
+  prTitle: text("pr_title").notNull(),
+  prBody: text("pr_body").notNull(),
+  author: text("author").notNull(),
+  mergedBy: text("merged_by"),
+  mergedAt: text("merged_at").notNull(),
+  baseRef: text("base_ref").notNull(),
+  headSha: text("head_sha").notNull(),
+  mergeCommitSha: text("merge_commit_sha"),
+  closedAt: text("closed_at").notNull(),
+  detectedAt: integer("detected_at").notNull(),
+  verdict: text("verdict", { mode: "json" }).$type<import("@mba/shared").ReviewVerdict>(),
+  reviewModel: text("review_model"),
+  reviewedAt: integer("reviewed_at"),
+  reviewError: text("review_error"),
+  reviewAttempts: integer("review_attempts").notNull().default(0),
 });
 
 export const fundings = sqliteTable(
@@ -63,7 +94,30 @@ CREATE TABLE IF NOT EXISTS bounties (
   created_block INTEGER NOT NULL,
   title TEXT,
   acceptance_criteria TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  status_reason TEXT,
   updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS claims (
+  bounty_id INTEGER PRIMARY KEY,
+  repo TEXT NOT NULL,
+  pr_number INTEGER NOT NULL,
+  pr_url TEXT NOT NULL,
+  pr_title TEXT NOT NULL,
+  pr_body TEXT NOT NULL,
+  author TEXT NOT NULL,
+  merged_by TEXT,
+  merged_at TEXT NOT NULL,
+  base_ref TEXT NOT NULL,
+  head_sha TEXT NOT NULL,
+  merge_commit_sha TEXT,
+  closed_at TEXT NOT NULL,
+  detected_at INTEGER NOT NULL,
+  verdict TEXT,
+  review_model TEXT,
+  reviewed_at INTEGER,
+  review_error TEXT,
+  review_attempts INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS fundings (
   tx_hash TEXT NOT NULL,
@@ -79,3 +133,9 @@ CREATE TABLE IF NOT EXISTS sync_state (
   value TEXT NOT NULL
 );
 `;
+
+/** Columns added after a table first shipped; applied with ALTER TABLE when missing. */
+export const ADDED_COLUMNS: { table: string; column: string; ddl: string }[] = [
+  { table: "bounties", column: "status", ddl: "ALTER TABLE bounties ADD COLUMN status TEXT NOT NULL DEFAULT 'open'" },
+  { table: "bounties", column: "status_reason", ddl: "ALTER TABLE bounties ADD COLUMN status_reason TEXT" },
+];

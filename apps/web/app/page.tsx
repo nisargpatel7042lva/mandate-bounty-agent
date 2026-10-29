@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useConfig } from "../components/use-config.ts";
 import { agentApi } from "../lib/api.ts";
 import { formatUsdc } from "../lib/format.ts";
+import { STATUS } from "../lib/status.ts";
 
 export default function BountyListPage() {
   const cfg = useConfig();
@@ -43,7 +44,9 @@ export default function BountyListPage() {
                 <span className="row-meta">
                   {b.repo} · issue #{b.issueNumber}
                 </span>
-                <span className="row-meta">funded {formatUsdc(b.funded)}</span>
+                <span className="row-meta">
+                  funded {formatUsdc(b.funded)} · {STATUS[b.status].label}
+                </span>
               </Link>
             </li>
           ))}

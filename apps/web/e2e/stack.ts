@@ -8,12 +8,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deployLocal, startAnvil } from "@mba/contracts/testing";
 import { E2E } from "./ports.ts";
+import { startStubs } from "./stubs.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "..");
 const agentEntry = path.resolve(webDir, "../agent/src/server.ts");
 const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
 
+const stubs = await startStubs();
 const chain = await startAnvil(E2E.anvilPort);
 const d = await deployLocal(chain.rpcUrl);
 writeFileSync(path.join(here, ".stack.json"), JSON.stringify({ rpcUrl: chain.rpcUrl, vault: d.bountyVault, usdc: d.mockUsdc }));
@@ -36,6 +38,13 @@ start(
     VAULT_DEPLOY_BLOCK: d.deployBlock.toString(),
     SYNC_INTERVAL_MS: "1000",
     CORS_ORIGINS: E2E.webUrl,
+    // GitHub and Claude are local stubs (e2e/stubs.ts); the agent's real clients talk to them.
+    GITHUB_TOKEN: "e2e-github-token",
+    GITHUB_TOKEN_COMMAND: "",
+    GITHUB_API_URL: stubs.githubUrl,
+    GITHUB_POLL_INTERVAL_MS: "1000",
+    ANTHROPIC_API_KEY: "e2e-anthropic-key",
+    ANTHROPIC_BASE_URL: stubs.anthropicUrl,
   },
   webDir,
 );

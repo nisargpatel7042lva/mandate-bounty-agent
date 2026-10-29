@@ -1,6 +1,13 @@
+import { execSync } from "node:child_process";
 import { z } from "zod";
 
 const Address = z.string().regex(/^0x[0-9a-fA-F]{40}$/).transform((s) => s as `0x${string}`);
+
+/** Values copied unchanged from .env.example count as unset. */
+const Secret = z
+  .string()
+  .optional()
+  .transform((s) => (s && !/placeholder/i.test(s) ? s : undefined));
 
 const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8787),
@@ -14,6 +21,20 @@ const EnvSchema = z.object({
     .string()
     .default("http://localhost:3000")
     .transform((s) => s.split(",").map((o) => o.trim()).filter(Boolean)),
+
+  GITHUB_TOKEN: Secret,
+  /** Local dev alternative to a stored token, e.g. "gh auth token". Run once at startup. */
+  GITHUB_TOKEN_COMMAND: z.string().optional(),
+  GITHUB_API_URL: z.url().default("https://api.github.com"),
+  GITHUB_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+  /** Which LLM writes the advisory review. Unset: Claude if ANTHROPIC_API_KEY is set, else Gemini. */
+  REVIEW_PROVIDER: z.enum(["claude", "gemini"]).optional(),
+  /** Read by the Anthropic SDK itself; checked here only so the watcher can report it missing. */
+  ANTHROPIC_API_KEY: Secret,
+  ANTHROPIC_BASE_URL: z.url().optional(),
+  GEMINI_API_KEY: Secret,
+  GEMINI_MODEL: z.string().min(1).optional(),
+  GEMINI_BASE_URL: z.url().optional(),
 });
 export type Env = z.infer<typeof EnvSchema>;
 
@@ -24,4 +45,25 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     throw new Error(`invalid agent environment:\n${lines}`);
   }
   return parsed.data;
+}
+
+/**
+ * Runs the token command without GITHUB_TOKEN / GH_TOKEN in its environment: `gh auth token`
+ * echoes those variables when set, so a placeholder loaded from .env would come straight back.
+ */
+function runTokenCommand(cmd: string): string {
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "GITHUB_TOKEN" && k !== "GH_TOKEN"));
+  return execSync(cmd, { encoding: "utf8", env });
+}
+
+/** GITHUB_TOKEN if set, otherwise the output of GITHUB_TOKEN_COMMAND; undefined if neither works. */
+export function resolveGitHubToken(env: Env, run: (cmd: string) => string = runTokenCommand): string | undefined {
+  if (env.GITHUB_TOKEN) return env.GITHUB_TOKEN;
+  if (!env.GITHUB_TOKEN_COMMAND) return undefined;
+  try {
+    const out = run(env.GITHUB_TOKEN_COMMAND).trim();
+    return out.length > 0 ? out : undefined;
+  } catch {
+    return undefined;
+  }
 }

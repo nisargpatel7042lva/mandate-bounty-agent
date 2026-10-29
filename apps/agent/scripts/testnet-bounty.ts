@@ -1,6 +1,7 @@
 // Creates and funds one real bounty on Ethereum Sepolia from the deployer account, then registers it
 // with the running agent. Usage:
 //   node --env-file=../../.env --experimental-strip-types scripts/testnet-bounty.ts [owner/repo] [issue]
+// Optional: BOUNTY_TITLE and BOUNTY_CRITERIA set the title and acceptance criteria sent to the agent.
 import { readFileSync } from "node:fs";
 import { bountyVaultAbi, mockUSDCAbi } from "@mba/contracts";
 import { createPublicClient, createWalletClient, http, type Address, type Hex } from "viem";
@@ -53,8 +54,8 @@ const res = await fetch(`${agentUrl}/bounties`, {
   headers: { "content-type": "application/json" },
   body: JSON.stringify({
     txHash: createTx,
-    title: `Testnet bounty for ${repo}#${issue}`,
-    acceptanceCriteria: "Phase 1 manual E2E: created and funded from the CLI on Ethereum Sepolia.",
+    title: process.env.BOUNTY_TITLE ?? `Testnet bounty for ${repo}#${issue}`,
+    acceptanceCriteria: process.env.BOUNTY_CRITERIA ?? "Phase 1 manual E2E: created and funded from the CLI on Ethereum Sepolia.",
   }),
 }).catch((e: Error) => ({ ok: false, status: 0, text: async () => e.message }));
 console.log(res.ok ? `registered with agent at ${agentUrl}` : `agent registration failed (${res.status}): ${await res.text()}`);

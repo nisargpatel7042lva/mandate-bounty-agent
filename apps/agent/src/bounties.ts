@@ -1,7 +1,7 @@
-import { BountySchema, type BountyDto, type CreateBountyRequest } from "@mba/shared";
+import { BountySchema, type BountyDto, type ClaimDto, type CreateBountyRequest } from "@mba/shared";
 import { desc, eq } from "drizzle-orm";
 import type { Db } from "./db/client.ts";
-import { bounties } from "./db/schema.ts";
+import { bounties, claims } from "./db/schema.ts";
 import { applyVaultEvents, type VaultEvent } from "./chain/events.ts";
 
 /** What the bounty service needs from the chain; faked in unit tests. */
@@ -21,9 +21,31 @@ export class BountyError extends Error {
 }
 
 type Row = typeof bounties.$inferSelect;
+type ClaimRow = typeof claims.$inferSelect;
 
-export function toDto(r: Row): BountyDto {
+export function claimToDto(c: ClaimRow): ClaimDto {
   return {
+    repo: c.repo,
+    prNumber: c.prNumber,
+    prUrl: c.prUrl,
+    prTitle: c.prTitle,
+    author: c.author,
+    mergedBy: c.mergedBy,
+    mergedAt: c.mergedAt,
+    baseRef: c.baseRef,
+    headSha: c.headSha,
+    mergeCommitSha: c.mergeCommitSha,
+    closedAt: c.closedAt,
+    detectedAt: c.detectedAt,
+    review: { verdict: c.verdict ?? null, model: c.reviewModel, reviewedAt: c.reviewedAt, error: c.reviewError, attempts: c.reviewAttempts },
+  };
+}
+
+export function toDto(r: Row, claim?: ClaimRow | null): BountyDto {
+  return {
+    status: r.status,
+    statusReason: r.statusReason,
+    claim: claim ? claimToDto(claim) : null,
     id: r.id,
     chainId: r.chainId,
     vault: r.vault,
@@ -42,12 +64,18 @@ export function toDto(r: Row): BountyDto {
 }
 
 export function listBounties(db: Db): BountyDto[] {
-  return db.select().from(bounties).orderBy(desc(bounties.id)).all().map(toDto);
+  return db
+    .select()
+    .from(bounties)
+    .leftJoin(claims, eq(claims.bountyId, bounties.id))
+    .orderBy(desc(bounties.id))
+    .all()
+    .map((r) => toDto(r.bounties, r.claims));
 }
 
 export function getBounty(db: Db, id: number): BountyDto | null {
-  const row = db.select().from(bounties).where(eq(bounties.id, id)).get();
-  return row ? toDto(row) : null;
+  const row = db.select().from(bounties).leftJoin(claims, eq(claims.bountyId, bounties.id)).where(eq(bounties.id, id)).get();
+  return row ? toDto(row.bounties, row.claims) : null;
 }
 
 /**
