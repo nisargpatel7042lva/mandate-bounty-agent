@@ -1,0 +1,15 @@
+{
+  "description": "Mandate compliance vectors. checkMandate (TS), BountyVault.checkPayout (Solidity) and, from Phase 5, the circuit must all agree. Amounts are tUSDC base units (6 decimals). secondsUntilExpiry = expiry - now. mask bits: 1 AMOUNT_ZERO, 2 EXCEEDS_PER_PAYOUT_CAP, 4 EXCEEDS_TOTAL_BUDGET, 8 PAYEE_NOT_ALLOWLISTED, 16 MANDATE_EXPIRED.",
+  "cases": [
+    { "name": "inside every limit", "cap": "500000000", "budget": "1000000000", "spentSoFar": "0", "amount": "500000000", "payeeAllowed": true, "secondsUntilExpiry": 3600, "mask": 0 },
+    { "name": "exactly reaches budget", "cap": "500000000", "budget": "1000000000", "spentSoFar": "500000000", "amount": "500000000", "payeeAllowed": true, "secondsUntilExpiry": 3600, "mask": 0 },
+    { "name": "one second before expiry", "cap": "500000000", "budget": "1000000000", "spentSoFar": "0", "amount": "1", "payeeAllowed": true, "secondsUntilExpiry": 1, "mask": 0 },
+    { "name": "zero amount", "cap": "500000000", "budget": "1000000000", "spentSoFar": "0", "amount": "0", "payeeAllowed": true, "secondsUntilExpiry": 3600, "mask": 1 },
+    { "name": "one unit over cap", "cap": "500000000", "budget": "1000000000", "spentSoFar": "0", "amount": "500000001", "payeeAllowed": true, "secondsUntilExpiry": 3600, "mask": 2 },
+    { "name": "cumulative spend over budget", "cap": "500000000", "budget": "1000000000", "spentSoFar": "500000001", "amount": "500000000", "payeeAllowed": true, "secondsUntilExpiry": 3600, "mask": 4 },
+    { "name": "payee not allowlisted", "cap": "500000000", "budget": "1000000000", "spentSoFar": "0", "amount": "100", "payeeAllowed": false, "secondsUntilExpiry": 3600, "mask": 8 },
+    { "name": "exactly at expiry", "cap": "500000000", "budget": "1000000000", "spentSoFar": "0", "amount": "100", "payeeAllowed": true, "secondsUntilExpiry": 0, "mask": 16 },
+    { "name": "after expiry", "cap": "500000000", "budget": "1000000000", "spentSoFar": "0", "amount": "100", "payeeAllowed": true, "secondsUntilExpiry": -10, "mask": 16 },
+    { "name": "every violation but zero", "cap": "500000000", "budget": "1000000000", "spentSoFar": "900000000", "amount": "600000000", "payeeAllowed": false, "secondsUntilExpiry": -1, "mask": 30 }
+  ]
+}

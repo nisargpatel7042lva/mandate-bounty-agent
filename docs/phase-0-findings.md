@@ -141,3 +141,9 @@ Rejected alternatives:
   - Hono 4.13.14 with `@hono/node-server` 2.1.5 (Hono's Node adapter).
   - Vitest 5.0.5, zod 4.6.7.
   - forge-std v1.17.0 (git submodule).
+
+## Update (Phase 1, 2026-10-29): testnet moved to Ethereum Sepolia
+
+The deployer was funded on Ethereum Sepolia, and the user approved switching from Base Sepolia.
+zkVerify's Sepolia (11155111) aggregation proxy is `0xEA0A0f1EfB1088F4ff0Def03741Cb2C64F89361E`,
+so the aggregation design is unchanged. Explorer: sepolia.etherscan.io. RPC: ethereum-sepolia-rpc.publicnode.com.

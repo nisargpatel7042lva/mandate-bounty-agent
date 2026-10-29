@@ -5,11 +5,22 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run --dir test/unit",
+    "test:integration": "vitest run --dir test/integration",
+    "dev": "node --env-file-if-exists=../../.env --experimental-strip-types src/server.ts",
+    "start": "node --env-file-if-exists=../../.env --experimental-strip-types src/server.ts"
   },
   "dependencies": {
+    "@mba/contracts": "workspace:*",
     "@mba/shared": "workspace:*",
     "@hono/node-server": "2.1.5",
-    "hono": "4.13.14"
+    "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.14",
+    "viem": "2.57.13",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0"
   }
 }

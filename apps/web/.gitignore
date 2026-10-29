@@ -1,2 +1,6 @@
 .next/
+.next-e2e/
 next-env.d.ts
+e2e/.stack.json
+test-results/
+playwright-report/

@@ -7,6 +7,10 @@ export default tseslint.config(
       "**/node_modules/**",
       "**/dist/**",
       "**/.next/**",
+      "**/.next-e2e/**",
+      "**/test-results/**",
+      "**/playwright-report/**",
+      "packages/contracts/generated/**",
       "**/next-env.d.ts",
       "packages/contracts/lib/**",
       "packages/contracts/out/**",
@@ -16,7 +20,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
-    files: ["scripts/**/*.mjs"],
+    files: ["scripts/**/*.mjs", "packages/*/*.mjs"],
     languageOptions: { globals: { process: "readonly", console: "readonly" } },
   },
 );

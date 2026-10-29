@@ -1,4 +1,4 @@
-import type { Mandate } from "./schemas.js";
+import type { Mandate } from "./schemas.ts";
 
 export type MandateViolation =
   | "AMOUNT_ZERO"

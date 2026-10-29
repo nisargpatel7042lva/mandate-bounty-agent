@@ -15,3 +15,9 @@ packages/circuits/build/
 coverage/
 playwright-report/
 test-results/
+.next-e2e/
+packages/contracts/deployments/31337.json
+*.sqlite-wal
+*.sqlite-shm
+apps/agent/data/
+*.recovery.lock

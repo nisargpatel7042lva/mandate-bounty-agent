@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MandateSchema, checkMandate } from "../src/index.js";
+import { BountySchema, MandateSchema, checkMandate } from "../src/index.ts";
 
 const ALICE = "0x00000000000000000000000000000000000a11ce";
 const MALLORY = "0x000000000000000000000000000000000ba11e75";
@@ -41,6 +41,35 @@ describe("checkMandate", () => {
 
   it("matches payees case-insensitively", () => {
     expect(checkMandate(mandate, { ...base, payee: ALICE.toUpperCase().replace("0X", "0x") as `0x${string}` }).ok).toBe(true);
+  });
+});
+
+describe("BountySchema invariants (mirror BountyVault.createBounty)", () => {
+  const ok = {
+    repo: "acme/widgets",
+    issueNumber: 1,
+    payoutAmount: "100",
+    mandate: { perPayoutCap: "200", totalBudget: "500", allowedPayees: [ALICE], expiry: 2_000_000_000 },
+  };
+  const issuePaths = (input: unknown) => {
+    const r = BountySchema.safeParse(input);
+    return r.success ? [] : r.error.issues.map((i) => i.path.join("."));
+  };
+
+  it("accepts a consistent bounty", () => {
+    expect(issuePaths(ok)).toEqual([]);
+  });
+
+  it.each([
+    ["payout above cap", { ...ok, payoutAmount: "201" }, "payoutAmount"],
+    ["zero payout", { ...ok, payoutAmount: "0" }, "payoutAmount"],
+    ["cap above budget", { ...ok, mandate: { ...ok.mandate, perPayoutCap: "501" } }, "mandate.perPayoutCap"],
+    ["duplicate payees", { ...ok, mandate: { ...ok.mandate, allowedPayees: [ALICE, ALICE.toUpperCase().replace("0X", "0x")] } }, "mandate.allowedPayees"],
+    ["zero-address payee", { ...ok, mandate: { ...ok.mandate, allowedPayees: [`0x${"0".repeat(40)}`] } }, "mandate.allowedPayees"],
+    ["too many payees", { ...ok, mandate: { ...ok.mandate, allowedPayees: Array.from({ length: 17 }, (_, i) => `0x${(i + 1).toString(16).padStart(40, "0")}`) } }, "mandate.allowedPayees"],
+    ["bad repo", { ...ok, repo: "no-slash" }, "repo"],
+  ])("rejects %s", (_n, input, path) => {
+    expect(issuePaths(input)).toContain(path);
   });
 });
 

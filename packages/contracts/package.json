@@ -2,8 +2,22 @@
   "name": "@mba/contracts",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./generated/index.ts",
+    "./deployments/*": "./deployments/*",
+    "./testing": "./testing/local-chain.ts"
+  },
   "scripts": {
-    "build": "node ../../scripts/tool.mjs forge build",
-    "test": "node ../../scripts/tool.mjs forge test"
+    "build": "node ../../scripts/tool.mjs forge build && node gen-abi.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node ../../scripts/tool.mjs forge test",
+    "deploy:sepolia": "node ../../scripts/tool.mjs forge script script/Deploy.s.sol --rpc-url sepolia --broadcast --slow"
+  },
+  "dependencies": {
+    "viem": "2.57.13"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6"
   }
 }

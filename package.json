@@ -9,10 +9,11 @@
   "scripts": {
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
+    "build": "pnpm -r --if-present build",
     "test": "pnpm -r --if-present test",
     "test:integration": "pnpm -r --if-present test:integration",
-    "build": "pnpm -r --if-present build",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:integration && pnpm build"
+    "test:e2e": "pnpm -r --if-present test:e2e",
+    "check": "pnpm typecheck && pnpm lint && pnpm build && pnpm test && pnpm test:integration && pnpm test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -21,5 +22,10 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
     "vitest": "5.0.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }
