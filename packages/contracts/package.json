@@ -1,0 +1,9 @@
+{
+  "name": "@mba/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node ../../scripts/tool.mjs forge build",
+    "test": "node ../../scripts/tool.mjs forge test"
+  }
+}
