@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.next/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-journal
+packages/contracts/out/
+packages/contracts/cache/
+packages/contracts/broadcast/*/31337/
+packages/circuits/build/
+*.ptau
+coverage/
+playwright-report/
+test-results/
