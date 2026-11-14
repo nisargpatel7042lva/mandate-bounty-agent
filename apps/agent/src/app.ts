@@ -1,4 +1,5 @@
-import { CreateBountyRequestSchema, type ApiError } from "@mba/shared";
+import { mandateCommitmentHex } from "@mba/circuits";
+import { CreateBountyRequestSchema, MandateSchema, type ApiError } from "@mba/shared";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { BountyError, getBounty, getRawWorkProof, listBounties, registerBounty, type VaultReader } from "./bounties.ts";
@@ -47,6 +48,20 @@ export function createApp({ db, chain, watcher, corsOrigins }: AppDeps) {
       if (err instanceof BountyError) return c.json<ApiError>({ error: err.message }, err.status);
       throw err;
     }
+  });
+
+  // The Poseidon commitment a funder puts on-chain with a new bounty's mandate. Pure function of the
+  // mandate: anyone can recompute it with packages/circuits, and the bounty page shows it.
+  app.post("/mandates/commitment", async (c) => {
+    const body: unknown = await c.req.json().catch(() => undefined);
+    const parsed = MandateSchema.safeParse(body);
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message }));
+      return c.json<ApiError>({ error: "invalid mandate", issues }, 400);
+    }
+    const m = parsed.data;
+    const commitment = await mandateCommitmentHex({ perPayoutCap: m.perPayoutCap, totalBudget: m.totalBudget, expiry: m.expiry, allowedPayees: m.allowedPayees });
+    return c.json({ commitment });
   });
 
   // The raw zkTLS proof, so anyone can re-verify it with Reclaim's SDK or packages/zktls.

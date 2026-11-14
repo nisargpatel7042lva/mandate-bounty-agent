@@ -2,12 +2,13 @@
 pragma solidity ^0.8.30;
 
 import { Test } from "forge-std/Test.sol";
-import { BountyVault, IERC20 } from "../src/BountyVault.sol";
+import { BountyVault, IERC20, IVerifyProofAggregation } from "../src/BountyVault.sol";
 import { MockUSDC } from "../src/MockUSDC.sol";
+import { MockZkVerify } from "../src/MockZkVerify.sol";
 
 /// Exposes `spent` so mandate vectors with prior spend can run before payouts exist.
 contract BountyVaultHarness is BountyVault {
-    constructor(IERC20 t) BountyVault(t) {}
+    constructor(IERC20 t, address agent_, IVerifyProofAggregation zk, bytes32 vk) BountyVault(t, agent_, zk, vk, true) {}
 
     function setSpent(uint256 id, uint128 spent) external {
         _bounties[id].spent = spent;
@@ -16,7 +17,11 @@ contract BountyVaultHarness is BountyVault {
 
 contract BountyVaultTest is Test {
     MockUSDC usdc;
+    MockZkVerify zk;
     BountyVaultHarness vault;
+    address agent = makeAddr("agent");
+    bytes32 constant VK_HASH = 0x5f6a0bc1f8a3a1d7c2e9b4f00112233445566778899aabbccddeeff001122334;
+    bytes32 constant COMMITMENT = bytes32(uint256(123456789012345678901234567890));
 
     address funder = makeAddr("funder");
     address alice = makeAddr("alice");
@@ -30,7 +35,8 @@ contract BountyVaultTest is Test {
     function setUp() public {
         vm.warp(1_800_000_000);
         usdc = new MockUSDC();
-        vault = new BountyVaultHarness(IERC20(address(usdc)));
+        zk = new MockZkVerify();
+        vault = new BountyVaultHarness(IERC20(address(usdc)), agent, zk, VK_HASH);
         vm.startPrank(funder);
         usdc.faucet(10_000e6);
         usdc.approve(address(vault), type(uint256).max);
@@ -38,7 +44,7 @@ contract BountyVaultTest is Test {
     }
 
     function _mandate() internal view returns (BountyVault.Mandate memory) {
-        return BountyVault.Mandate({ perPayoutCap: CAP, totalBudget: BUDGET, expiry: uint64(block.timestamp + 30 days) });
+        return BountyVault.Mandate({ perPayoutCap: CAP, totalBudget: BUDGET, expiry: uint64(block.timestamp + 30 days), commitment: COMMITMENT });
     }
 
     function _payees() internal view returns (address[] memory p) {
@@ -297,7 +303,7 @@ contract BountyVaultTest is Test {
 
     function _runVector(Vector memory v) internal {
         uint64 expiry = uint64(block.timestamp + 1 days);
-        BountyVault.Mandate memory m = BountyVault.Mandate({ perPayoutCap: v.cap, totalBudget: v.budget, expiry: expiry });
+        BountyVault.Mandate memory m = BountyVault.Mandate({ perPayoutCap: v.cap, totalBudget: v.budget, expiry: expiry, commitment: COMMITMENT });
         vm.prank(funder);
         uint256 id = vault.createBounty("acme/widgets", 1, 1, m, _payees());
         vault.setSpent(id, v.spent);

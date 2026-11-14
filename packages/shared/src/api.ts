@@ -92,6 +92,8 @@ export interface BountyDto {
     totalBudget: string;
     expiry: number;
     allowedPayees: string[];
+    /** Poseidon commitment to the mandate, set by the funder at creation (null for pre-v2 bounties). */
+    commitment: string | null;
   };
   funded: string;
   spent: string;

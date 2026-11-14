@@ -3,6 +3,8 @@ import type { VaultEvent } from "../../src/chain/events.ts";
 
 export const VAULT = "0x00000000000000000000000000000000000Fa017" as const;
 export const FUNDER = "0x000000000000000000000000000000000000F00D" as const;
+/** Any non-zero bytes32 works for event-level tests; packages/circuits computes real ones. */
+export const COMMITMENT = `0x${"c0".repeat(32)}` as const;
 export const ALICE = "0x00000000000000000000000000000000000A11cE" as const;
 
 export const tx = (n: number) => `0x${n.toString(16).padStart(64, "0")}` as `0x${string}`;
@@ -15,7 +17,7 @@ export function createdEvent(id: number, over: Partial<Extract<VaultEvent, { kin
     repo: "acme/widgets",
     issueNumber: 42n,
     payoutAmount: 250_000_000n,
-    mandate: { perPayoutCap: 500_000_000n, totalBudget: 1_000_000_000n, expiry: 2_000_000_000n },
+    mandate: { perPayoutCap: 500_000_000n, totalBudget: 1_000_000_000n, expiry: 2_000_000_000n, commitment: COMMITMENT },
     payees: [ALICE],
     txHash: tx(id),
     logIndex: 0,

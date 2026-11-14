@@ -71,7 +71,7 @@ export function toDto(r: Row, claim?: ClaimRow | null, proof?: ProofRow | null):
     repo: r.repo,
     issueNumber: r.issueNumber,
     payoutAmount: r.payoutAmount,
-    mandate: { perPayoutCap: r.perPayoutCap, totalBudget: r.totalBudget, expiry: r.expiry, allowedPayees: r.payees },
+    mandate: { perPayoutCap: r.perPayoutCap, totalBudget: r.totalBudget, expiry: r.expiry, allowedPayees: r.payees, commitment: r.mandateCommitment },
     funded: r.funded,
     spent: r.spent,
     createdTx: r.createdTx,

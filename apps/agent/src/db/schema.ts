@@ -15,6 +15,8 @@ export const bounties = sqliteTable("bounties", {
   perPayoutCap: text("per_payout_cap").notNull(),
   totalBudget: text("total_budget").notNull(),
   expiry: integer("expiry").notNull(),
+  /** Poseidon commitment the funder set on-chain; the mandate proof must match it. */
+  mandateCommitment: text("mandate_commitment"),
   payees: text("payees", { mode: "json" }).$type<string[]>().notNull(),
   funded: text("funded").notNull().default("0"),
   spent: text("spent").notNull().default("0"),
@@ -102,6 +104,7 @@ CREATE TABLE IF NOT EXISTS bounties (
   per_payout_cap TEXT NOT NULL,
   total_budget TEXT NOT NULL,
   expiry INTEGER NOT NULL,
+  mandate_commitment TEXT,
   payees TEXT NOT NULL,
   funded TEXT NOT NULL DEFAULT '0',
   spent TEXT NOT NULL DEFAULT '0',
@@ -165,4 +168,5 @@ CREATE TABLE IF NOT EXISTS sync_state (
 export const ADDED_COLUMNS: { table: string; column: string; ddl: string }[] = [
   { table: "bounties", column: "status", ddl: "ALTER TABLE bounties ADD COLUMN status TEXT NOT NULL DEFAULT 'open'" },
   { table: "bounties", column: "status_reason", ddl: "ALTER TABLE bounties ADD COLUMN status_reason TEXT" },
+  { table: "bounties", column: "mandate_commitment", ddl: "ALTER TABLE bounties ADD COLUMN mandate_commitment TEXT" },
 ];

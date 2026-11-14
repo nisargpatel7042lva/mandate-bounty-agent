@@ -6,7 +6,7 @@ import { getBounty, listBounties } from "../../src/bounties.ts";
 import { applyVaultEvents } from "../../src/chain/events.ts";
 import { openDb } from "../../src/db/client.ts";
 import { fundings } from "../../src/db/schema.ts";
-import { VAULT, createdEvent, fundedEvent } from "./fixtures.ts";
+import { COMMITMENT, VAULT, createdEvent, fundedEvent } from "./fixtures.ts";
 
 const ctx = { chainId: 31337, vault: VAULT };
 let dir: string | undefined;
@@ -65,7 +65,7 @@ describe("applyVaultEvents", () => {
       {
         kind: "mandateUpdated",
         id: 1n,
-        mandate: { perPayoutCap: 300n, totalBudget: 900n, expiry: 2_100_000_000n },
+        mandate: { perPayoutCap: 300n, totalBudget: 900n, expiry: 2_100_000_000n, commitment: COMMITMENT },
         payees: ["0x000000000000000000000000000000000000BEEF"],
         txHash: `0x${"ab".repeat(32)}`,
         logIndex: 0,
@@ -77,6 +77,7 @@ describe("applyVaultEvents", () => {
       totalBudget: "900",
       expiry: 2_100_000_000,
       allowedPayees: ["0x000000000000000000000000000000000000beef"],
+      commitment: COMMITMENT,
     });
   });
 

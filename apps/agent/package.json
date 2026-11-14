@@ -21,7 +21,9 @@
     "viem": "2.57.13",
     "zod": "4.6.7",
     "@mba/zktls": "workspace:*",
-    "@reclaimprotocol/zk-fetch": "1.1.0"
+    "@reclaimprotocol/zk-fetch": "1.1.0",
+    "@mba/circuits": "workspace:*",
+    "@mba/zkverify": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "9.6.0"

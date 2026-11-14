@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPublicClient, createWalletClient, http, type Address, type PublicClient, type WalletClient } from "viem";
 import { foundry } from "viem/chains";
-import { bountyVaultAbi, bountyVaultBytecode, mockUSDCAbi, mockUSDCBytecode } from "../generated/index.ts";
+import { bountyVaultAbi, bountyVaultBytecode, mockUSDCAbi, mockUSDCBytecode, mockZkVerifyAbi, mockZkVerifyBytecode } from "../generated/index.ts";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -61,13 +61,17 @@ export async function startAnvil(port: number): Promise<LocalChain> {
 export interface Deployment {
   mockUsdc: Address;
   bountyVault: Address;
+  /** MockZkVerify standing in for zkVerify's aggregation contract. */
+  zkVerify: Address;
+  /** The release signer (anvil account 0, the deployer). */
+  agent: Address;
   deployBlock: bigint;
   publicClient: PublicClient;
   wallet: WalletClient;
 }
 
-/** Deploys MockUSDC + BountyVault from anvil account 0. */
-export async function deployLocal(rpcUrl: string): Promise<Deployment> {
+/** Deploys MockUSDC + MockZkVerify + BountyVault from anvil account 0, which is also the agent signer. */
+export async function deployLocal(rpcUrl: string, opts: { vkHash?: `0x${string}`; aggregationRequired?: boolean } = {}): Promise<Deployment> {
   const transport = http(rpcUrl);
   const publicClient = createPublicClient({ chain: foundry, transport });
   const wallet = createWalletClient({ chain: foundry, transport, account: ANVIL_ACCOUNTS[0] });
@@ -76,15 +80,27 @@ export async function deployLocal(rpcUrl: string): Promise<Deployment> {
   const usdc = await publicClient.waitForTransactionReceipt({ hash: usdcTx });
   if (!usdc.contractAddress) throw new Error("MockUSDC deploy failed");
 
+  const zkTx = await wallet.deployContract({ abi: mockZkVerifyAbi, bytecode: mockZkVerifyBytecode, account: ANVIL_ACCOUNTS[0], chain: foundry });
+  const zk = await publicClient.waitForTransactionReceipt({ hash: zkTx });
+  if (!zk.contractAddress) throw new Error("MockZkVerify deploy failed");
+
   const vaultTx = await wallet.deployContract({
     abi: bountyVaultAbi,
     bytecode: bountyVaultBytecode,
-    args: [usdc.contractAddress],
+    args: [usdc.contractAddress, ANVIL_ACCOUNTS[0], zk.contractAddress, opts.vkHash ?? `0x${"0".repeat(64)}`, opts.aggregationRequired ?? true],
     account: ANVIL_ACCOUNTS[0],
     chain: foundry,
   });
   const vault = await publicClient.waitForTransactionReceipt({ hash: vaultTx });
   if (!vault.contractAddress) throw new Error("BountyVault deploy failed");
 
-  return { mockUsdc: usdc.contractAddress, bountyVault: vault.contractAddress, deployBlock: usdc.blockNumber, publicClient, wallet };
+  return {
+    mockUsdc: usdc.contractAddress,
+    bountyVault: vault.contractAddress,
+    zkVerify: zk.contractAddress,
+    agent: ANVIL_ACCOUNTS[0],
+    deployBlock: usdc.blockNumber,
+    publicClient,
+    wallet,
+  };
 }

@@ -14,6 +14,7 @@ interface MandateFields {
   perPayoutCap: bigint;
   totalBudget: bigint;
   expiry: bigint;
+  commitment: `0x${string}`;
 }
 
 export type VaultEvent =
@@ -72,6 +73,7 @@ export function applyVaultEvents(db: Db, ctx: { chainId: number; vault: `0x${str
           perPayoutCap: e.mandate.perPayoutCap.toString(),
           totalBudget: e.mandate.totalBudget.toString(),
           expiry: Number(e.mandate.expiry),
+          mandateCommitment: e.mandate.commitment,
           payees: e.payees.map((p) => p.toLowerCase()),
           createdTx: e.txHash,
           createdBlock: Number(e.blockNumber),
@@ -104,6 +106,7 @@ export function applyVaultEvents(db: Db, ctx: { chainId: number; vault: `0x${str
             perPayoutCap: e.mandate.perPayoutCap.toString(),
             totalBudget: e.mandate.totalBudget.toString(),
             expiry: Number(e.mandate.expiry),
+            mandateCommitment: e.mandate.commitment,
             payees: e.payees.map((p) => p.toLowerCase()),
             updatedAt: now,
           })

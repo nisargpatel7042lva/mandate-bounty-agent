@@ -1,0 +1,11 @@
+{
+  "circuit": "circuits/mandate.circom",
+  "sourceSha256": "7911002a2dafa7310265e050891227c6cd288192baf562a871adfb6fd68f7022",
+  "wasmSha256": "d5dbf9e65d92c7971f83564509c17c0c087ba23a533ec320a6ca866b3f75be74",
+  "zkeySha256": "3f2b50af5e5f25b2de9bb8fc81652aa6364d29cbcf03bda2f680d5d58d33751b",
+  "constraints": 10174,
+  "publicInputs": 8,
+  "ptauPower": 14,
+  "ceremony": "single-party testnet setup (NOT production-grade)",
+  "createdAt": "2026-11-14T05:49:16.996Z"
+}

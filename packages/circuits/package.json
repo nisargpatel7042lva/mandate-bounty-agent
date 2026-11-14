@@ -3,9 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "circuit:compile": "node ../../scripts/tool.mjs circom circuits/mandate.circom --r1cs --wasm --sym -o build -l ../../node_modules/.pnpm/circomlib@2.0.5/node_modules",
+    "circuit:setup": "node setup.mjs"
+  },
+  "dependencies": {
+    "circomlib": "2.0.5",
+    "circomlibjs": "0.1.7",
+    "snarkjs": "0.7.6",
+    "@mba/shared": "workspace:*"
   }
 }

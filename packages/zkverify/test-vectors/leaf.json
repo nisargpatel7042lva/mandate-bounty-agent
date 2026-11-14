@@ -1,0 +1,16 @@
+{
+  "note": "zkVerify Groth16 statement leaf; packages/zkverify (TS) and BountyVault (Solidity) must both produce these values",
+  "vkHash": "0x5f6a0bc1f8a3a1d7c2e9b4f00112233445566778899aabbccddeeff001122334",
+  "publicSignals": [
+    "123456789012345678901234567890",
+    "2",
+    "250000000",
+    "140245615895892097167911820354620320420793610210",
+    "0",
+    "1999996400",
+    "41541201385036049064540788651012096723",
+    "220407563524962733016226036453302148021"
+  ],
+  "pubsHash": "0x56f1db6d3799068b9797559051a78bc6b7cc467ba178335e42cab414e97c5ca9",
+  "leaf": "0x6f7ddb8498813f474fcbe8550e397d7a5f38bb1ef6a7adfca7777d25b2eefaa2"
+}
