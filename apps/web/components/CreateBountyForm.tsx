@@ -156,6 +156,13 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
       }
 
       mark("create", "active");
+      // The Poseidon commitment the mandate proof is checked against (same function as the circuit).
+      const { commitment } = await agentApi(config.agentUrl).commitment({
+        perPayoutCap: bounty.mandate.perPayoutCap.toString(),
+        totalBudget: bounty.mandate.totalBudget.toString(),
+        expiry: bounty.mandate.expiry,
+        allowedPayees: bounty.mandate.allowedPayees,
+      });
       const createTx = await wallet.writeContract({
         address: config.vault,
         abi: bountyVaultAbi,
@@ -164,7 +171,7 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
           bounty.repo,
           BigInt(bounty.issueNumber),
           bounty.payoutAmount,
-          { perPayoutCap: bounty.mandate.perPayoutCap, totalBudget: bounty.mandate.totalBudget, expiry: BigInt(bounty.mandate.expiry) },
+          { perPayoutCap: bounty.mandate.perPayoutCap, totalBudget: bounty.mandate.totalBudget, expiry: BigInt(bounty.mandate.expiry), commitment },
           bounty.mandate.allowedPayees,
           fundAmount,
         ],

@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference -- ambient typings for snarkjs/circomlibjs (untyped) must travel with this module to every importer
 /// <reference path="./vendor.d.ts" />
 import { buildPoseidon, type Poseidon } from "circomlibjs";
 import { checkMandate, type MandateViolation } from "@mba/shared";

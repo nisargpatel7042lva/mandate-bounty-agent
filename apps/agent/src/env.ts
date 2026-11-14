@@ -41,6 +41,20 @@ const EnvSchema = z.object({
   RECLAIM_APP_SECRET: Secret,
   /** Comma-separated trusted attestor addresses. Unset: fetched from Reclaim's published list. */
   RECLAIM_ATTESTORS: z.string().optional(),
+
+  /** Kurier (zkVerify relayer). Without a key, mandate proofs are made locally and wait for zkVerify. */
+  KURIER_API_URL: z.url().default("https://api-testnet.kurier.xyz/api/v1"),
+  KURIER_API_KEY: Secret,
+  /** Must match the vault: true means payouts need zkVerify's on-chain aggregation check. */
+  ZKVERIFY_AGGREGATION_REQUIRED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  /** zkVerify domain the aggregation is published under (passed to verifyProofAggregation). */
+  ZKVERIFY_DOMAIN_ID: z.coerce.number().int().nonnegative().default(0),
+
+  /** The agent's release signer (BountyVault.agent). Without it, verified payouts wait. Testnet only. */
+  AGENT_PRIVATE_KEY: Secret.refine((v) => v === undefined || /^0x[0-9a-fA-F]{64}$/.test(v), "must be 0x + 64 hex").transform((v) => v as `0x${string}` | undefined),
 });
 export type Env = z.infer<typeof EnvSchema>;
 

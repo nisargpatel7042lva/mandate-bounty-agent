@@ -24,9 +24,13 @@ export const bounties = sqliteTable("bounties", {
   createdBlock: integer("created_block").notNull(),
   title: text("title"),
   acceptanceCriteria: text("acceptance_criteria"),
-  /** Workflow position: open -> claimed -> reviewed | review_failed. Never affects money on its own. */
+  /** Workflow position (see BountyStatus). Only the vault moves money; this is the agent's view. */
   status: text("status").$type<BountyStatus>().notNull().default("open"),
   statusReason: text("status_reason"),
+  /** Funder approved paying despite the advisory review (mirrored from ReviewOverrideApproved). */
+  reviewOverride: integer("review_override", { mode: "boolean" }).notNull().default(false),
+  /** Mirrored from PayoutReleased. */
+  paidTx: text("paid_tx"),
   updatedAt: integer("updated_at").notNull(),
 });
 
@@ -43,6 +47,38 @@ export const workProofs = sqliteTable("work_proofs", {
   attestedAt: integer("attested_at"),
   verifiedAt: integer("verified_at"),
   failureCode: text("failure_code"),
+  error: text("error"),
+  attempts: integer("attempts").notNull().default(0),
+});
+
+/** The Groth16 mandate-compliance proof for the payout, and its zkVerify verification. */
+export const mandateProofs = sqliteTable("mandate_proofs", {
+  bountyId: integer("bounty_id").primaryKey(),
+  state: text("state").$type<"rejected" | "proved" | "submitted" | "verified" | "failed">().notNull(),
+  reasons: text("reasons", { mode: "json" }).$type<import("@mba/shared").MandateReasonCode[]>().notNull(),
+  commitment: text("commitment"),
+  proof: text("proof", { mode: "json" }).$type<unknown>(),
+  publicSignals: text("public_signals", { mode: "json" }).$type<string[]>(),
+  checkedAt: integer("checked_at"),
+  zkJobId: text("zk_job_id"),
+  zkStatus: text("zk_status"),
+  zkTxHash: text("zk_tx_hash"),
+  zkAggregationId: integer("zk_aggregation_id"),
+  zkDomainId: integer("zk_domain_id"),
+  zkStatement: text("zk_statement"),
+  zkAggregation: text("zk_aggregation", { mode: "json" }).$type<import("@mba/zkverify").AggregationDetails>(),
+  error: text("error"),
+  attempts: integer("attempts").notNull().default(0),
+});
+
+/** The vault payout. Written before the transaction is sent, so a crash can be reconciled. */
+export const payouts = sqliteTable("payouts", {
+  bountyId: integer("bounty_id").primaryKey(),
+  state: text("state").$type<"sending" | "sent" | "paid" | "failed">().notNull(),
+  payee: text("payee").notNull(),
+  amount: text("amount").notNull(),
+  txHash: text("tx_hash"),
+  paidAt: integer("paid_at"),
   error: text("error"),
   attempts: integer("attempts").notNull().default(0),
 });
@@ -114,6 +150,8 @@ CREATE TABLE IF NOT EXISTS bounties (
   acceptance_criteria TEXT,
   status TEXT NOT NULL DEFAULT 'open',
   status_reason TEXT,
+  review_override INTEGER NOT NULL DEFAULT 0,
+  paid_tx TEXT,
   updated_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS claims (
@@ -136,6 +174,34 @@ CREATE TABLE IF NOT EXISTS claims (
   reviewed_at INTEGER,
   review_error TEXT,
   review_attempts INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS mandate_proofs (
+  bounty_id INTEGER PRIMARY KEY,
+  state TEXT NOT NULL,
+  reasons TEXT NOT NULL,
+  commitment TEXT,
+  proof TEXT,
+  public_signals TEXT,
+  checked_at INTEGER,
+  zk_job_id TEXT,
+  zk_status TEXT,
+  zk_tx_hash TEXT,
+  zk_aggregation_id INTEGER,
+  zk_domain_id INTEGER,
+  zk_statement TEXT,
+  zk_aggregation TEXT,
+  error TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS payouts (
+  bounty_id INTEGER PRIMARY KEY,
+  state TEXT NOT NULL,
+  payee TEXT NOT NULL,
+  amount TEXT NOT NULL,
+  tx_hash TEXT,
+  paid_at INTEGER,
+  error TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS work_proofs (
   bounty_id INTEGER PRIMARY KEY,
@@ -169,4 +235,6 @@ export const ADDED_COLUMNS: { table: string; column: string; ddl: string }[] = [
   { table: "bounties", column: "status", ddl: "ALTER TABLE bounties ADD COLUMN status TEXT NOT NULL DEFAULT 'open'" },
   { table: "bounties", column: "status_reason", ddl: "ALTER TABLE bounties ADD COLUMN status_reason TEXT" },
   { table: "bounties", column: "mandate_commitment", ddl: "ALTER TABLE bounties ADD COLUMN mandate_commitment TEXT" },
+  { table: "bounties", column: "review_override", ddl: "ALTER TABLE bounties ADD COLUMN review_override INTEGER NOT NULL DEFAULT 0" },
+  { table: "bounties", column: "paid_tx", ddl: "ALTER TABLE bounties ADD COLUMN paid_tx TEXT" },
 ];

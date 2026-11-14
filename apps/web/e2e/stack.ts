@@ -18,8 +18,9 @@ const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
 
 const stubs = await startStubs();
 const chain = await startAnvil(E2E.anvilPort);
-const d = await deployLocal(chain.rpcUrl);
-writeFileSync(path.join(here, ".stack.json"), JSON.stringify({ rpcUrl: chain.rpcUrl, vault: d.bountyVault, usdc: d.mockUsdc }));
+const VK_HASH = `0x${"5a".repeat(32)}` as const;
+const d = await deployLocal(chain.rpcUrl, { vkHash: VK_HASH, aggregationRequired: true });
+writeFileSync(path.join(here, ".stack.json"), JSON.stringify({ rpcUrl: chain.rpcUrl, vault: d.bountyVault, usdc: d.mockUsdc, agentUrl: `http://127.0.0.1:${E2E.agentPort}` }));
 
 const children: ChildProcess[] = [];
 const start = (args: string[], env: Record<string, string>, cwd: string) => {
@@ -39,6 +40,11 @@ start(
     VAULT_DEPLOY_BLOCK: d.deployBlock.toString(),
     SYNC_INTERVAL_MS: "1000",
     CORS_ORIGINS: E2E.webUrl,
+    // The vault's release signer (anvil dev key 0, public) and the local zkVerify stand-in.
+    AGENT_PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+    E2E_ZKVERIFY_ADDRESS: d.zkVerify,
+    E2E_VK_HASH: VK_HASH,
+    KURIER_API_KEY: "",
     // GitHub and Claude are local stubs (e2e/stubs.ts); the agent's real clients talk to them.
     GITHUB_TOKEN: "e2e-github-token",
     GITHUB_TOKEN_COMMAND: "",
@@ -49,6 +55,18 @@ start(
   },
   webDir,
 );
+
+// Playwright waits only for the web port, so hold Next until the agent answers.
+const agentHealth = `http://127.0.0.1:${E2E.agentPort}/health`;
+for (let i = 0; ; i++) {
+  try {
+    if ((await fetch(agentHealth)).ok) break;
+  } catch {
+    // not up yet
+  }
+  if (i > 240) throw new Error("agent did not start within 60s");
+  await new Promise((r) => setTimeout(r, 250));
+}
 
 start(
   [nextBin, "dev", "--port", String(E2E.webPort)],

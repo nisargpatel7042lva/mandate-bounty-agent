@@ -20,5 +20,7 @@ export const agentApi = (base: string) => ({
   get: (id: number) => call<BountyDto>(base, `/bounties/${id}`),
   register: (req: CreateBountyRequest) =>
     call<BountyDto>(base, "/bounties", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(req) }),
+  commitment: (mandate: { perPayoutCap: string; totalBudget: string; expiry: number; allowedPayees: string[] }) =>
+    call<{ commitment: `0x${string}` }>(base, "/mandates/commitment", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mandate) }),
   check: (id: number) => call<{ step: { action: string }; bounty: BountyDto }>(base, `/bounties/${id}/check`, { method: "POST" }),
 });

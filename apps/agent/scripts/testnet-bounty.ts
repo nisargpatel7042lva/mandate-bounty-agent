@@ -1,8 +1,10 @@
 // Creates and funds one real bounty on Ethereum Sepolia from the deployer account, then registers it
 // with the running agent. Usage:
 //   node --env-file=../../.env --experimental-strip-types scripts/testnet-bounty.ts [owner/repo] [issue]
-// Optional: BOUNTY_TITLE and BOUNTY_CRITERIA set the title and acceptance criteria sent to the agent.
+// Optional: BOUNTY_TITLE and BOUNTY_CRITERIA set the title and acceptance criteria sent to the agent;
+// BOUNTY_PAYEES (comma-separated) sets the allowlist (default: the deployer).
 import { readFileSync } from "node:fs";
+import { mandateCommitmentHex } from "@mba/circuits";
 import { bountyVaultAbi, mockUSDCAbi } from "@mba/contracts";
 import { createPublicClient, createWalletClient, http, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -29,6 +31,10 @@ async function send(label: string, hash: Hex) {
 }
 
 const fund = 400_000_000n; // 400 tUSDC
+// The mandate and the Poseidon commitment the mandate proof will be checked against.
+const mandate = { perPayoutCap: 500_000_000n, totalBudget: 1_000_000_000n, expiry: BigInt(Math.floor(Date.now() / 1000) + 30 * 86_400) };
+const payees = (process.env.BOUNTY_PAYEES ?? account.address).split(",").map((a) => a.trim() as Address);
+const commitment = await mandateCommitmentHex({ ...mandate, allowedPayees: payees });
 await send("faucet", await wallet.writeContract({ address: deployment.mockUsdc, abi: mockUSDCAbi, functionName: "faucet", args: [1_000_000_000n] }));
 await send("approve", await wallet.writeContract({ address: deployment.mockUsdc, abi: mockUSDCAbi, functionName: "approve", args: [deployment.bountyVault, fund] }));
 const createTx = await send(
@@ -41,8 +47,8 @@ const createTx = await send(
       repo,
       BigInt(issue),
       250_000_000n,
-      { perPayoutCap: 500_000_000n, totalBudget: 1_000_000_000n, expiry: BigInt(Math.floor(Date.now() / 1000) + 30 * 86_400) },
-      [account.address],
+      { ...mandate, commitment },
+      payees,
       fund,
     ],
   }),

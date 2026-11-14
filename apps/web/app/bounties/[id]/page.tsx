@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ClaimPanel } from "../../../components/ClaimPanel.tsx";
 import { WorkProofPanel } from "../../../components/WorkProofPanel.tsx";
+import { MandatePayoutPanel } from "../../../components/MandatePayoutPanel.tsx";
 import { useConfig } from "../../../components/use-config.ts";
 import { agentApi } from "../../../lib/api.ts";
 import { addressUrl, txUrl, type WebConfig } from "../../../lib/config.ts";
@@ -146,6 +147,8 @@ export default function BountyDetailPage() {
 
       <h2>Proof of merge (zkTLS)</h2>
       <WorkProofPanel bounty={bounty} agentUrl={config.agentUrl} />
+
+      <MandatePayoutPanel bounty={bounty} config={config} onChange={load} />
 
       <h2>On-chain</h2>
       <div className="card">

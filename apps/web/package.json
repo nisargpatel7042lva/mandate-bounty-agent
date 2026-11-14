@@ -25,6 +25,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@mba/agent": "workspace:*",
-    "@mba/zktls": "workspace:*"
+    "@mba/zktls": "workspace:*",
+    "@mba/zkverify": "workspace:*"
   }
 }

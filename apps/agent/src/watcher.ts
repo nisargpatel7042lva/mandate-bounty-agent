@@ -5,6 +5,8 @@ import { bounties, claims, workProofs } from "./db/schema.ts";
 import type { GitHubClient } from "./github/client.ts";
 import { detectClosingPr } from "./github/detect.ts";
 import type { Reviewer } from "./review/reviewer.ts";
+import { mandateStep, type MandateStepResult, type ZkVerifier } from "./mandate-step.ts";
+import { payoutStep, type PayoutStepResult, type Payer } from "./payout-step.ts";
 
 export const MAX_REVIEW_ATTEMPTS = 3;
 export const MAX_PROOF_ATTEMPTS = 3;
@@ -21,6 +23,10 @@ export interface WatcherDeps {
   reviewer?: Reviewer | undefined;
   /** Without a prover, reviewed bounties wait for their work proof (attempts are not spent). */
   prover?: WorkProver | undefined;
+  /** Without it, mandate proofs are made and verified locally, and wait for zkVerify. */
+  zkverify?: ZkVerifier | undefined;
+  /** Without it, zkVerify-proven bounties wait for a signer to release the payout. */
+  payer?: Payer | undefined;
   /** Unix seconds; injectable for tests. */
   now?: () => number;
 }
@@ -35,6 +41,8 @@ export type StepResult =
   | { action: "work_proven"; identifier: string }
   | { action: "proof_retry"; error: string }
   | { action: "work_proof_failed"; code: string; error: string }
+  | MandateStepResult
+  | PayoutStepResult
   | { action: "done" };
 
 const nowS = (deps: WatcherDeps) => (deps.now ? deps.now() : Math.floor(Date.now() / 1000));
@@ -110,6 +118,8 @@ export async function processBounty(db: Db, deps: WatcherDeps, id: number): Prom
 
   if (bounty.status === "claimed") return reviewClaim(db, deps, id);
   if (bounty.status === "reviewed") return proveWork(db, deps, id);
+  if (bounty.status === "work_proven") return proveMandateStep(db, deps, id);
+  if (bounty.status === "mandate_proven" || bounty.status === "held_for_funder") return payoutStep(db, deps.payer, id, nowS(deps));
   return { action: "done" };
 }
 
@@ -183,7 +193,17 @@ async function proveWork(db: Db, deps: WatcherDeps, id: number): Promise<StepRes
       .where(eq(bounties.id, id))
       .run();
   });
-  return result.ok ? { action: "work_proven", identifier: result.identifier } : { action: "work_proof_failed", code: result.code, error: result.reason };
+  if (!result.ok) return { action: "work_proof_failed", code: result.code, error: result.reason };
+  // Continue to the mandate proof in the same pass when zkVerify is configured.
+  if (deps.zkverify) return proveMandateStep(db, deps, id);
+  return { action: "work_proven", identifier: result.identifier };
+}
+
+/** work_proven -> mandate_proven (then straight on to the payout) | mandate_rejected. */
+async function proveMandateStep(db: Db, deps: WatcherDeps, id: number): Promise<StepResult> {
+  const r = await mandateStep(db, deps.zkverify, id, nowS(deps));
+  if (r.action === "mandate_proven") return payoutStep(db, deps.payer, id, nowS(deps));
+  return r;
 }
 
 async function reviewClaim(db: Db, deps: WatcherDeps, id: number): Promise<StepResult> {
@@ -267,7 +287,7 @@ export class Watcher {
 
   /** One pass over every bounty that still needs work. Errors are reported per bounty, not thrown. */
   async tick(): Promise<{ id: number; result?: StepResult; error?: string }[]> {
-    const pending = this.db.select({ id: bounties.id }).from(bounties).where(inArray(bounties.status, ["open", "claimed", "reviewed"])).all();
+    const pending = this.db.select({ id: bounties.id }).from(bounties).where(inArray(bounties.status, ["open", "claimed", "reviewed", "work_proven", "mandate_proven", "held_for_funder"])).all();
     const out: { id: number; result?: StepResult; error?: string }[] = [];
     for (const { id } of pending) {
       try {

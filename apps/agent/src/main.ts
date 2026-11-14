@@ -9,10 +9,16 @@ import { createGitHubClient } from "./github/client.ts";
 import { createProverFromEnv } from "./prover.ts";
 import { createReviewerFromEnv } from "./review/index.ts";
 import { Watcher, type WorkProver } from "./watcher.ts";
+import { bountyVaultAbi } from "@mba/contracts";
+import { createPayer } from "./chain/payer.ts";
+import type { ZkVerifier } from "./mandate-step.ts";
+import { createKurierVerifier } from "./zk.ts";
 
 /** Lets a test harness supply its own prover (e.g. a local attestor) instead of Reclaim. */
 export interface AgentOverrides {
   prover?: WorkProver;
+  /** e.g. a local stand-in that marks leaves on MockZkVerify. */
+  zkverify?: ZkVerifier;
 }
 
 /** Runs `fn` on an interval, skipping a beat if the previous run is still going. */
@@ -43,11 +49,37 @@ export async function startAgent(env: Env, overrides: AgentOverrides = {}) {
   const githubToken = resolveGitHubToken(env);
   const review = createReviewerFromEnv(env);
   const proving = overrides.prover ? { prover: overrides.prover } : await createProverFromEnv(env, githubToken);
+
+  // zkVerify (Kurier) for the mandate proof, and the vault signer for payouts.
+  let zkverify: ZkVerifier | undefined = overrides.zkverify;
+  if (!zkverify && env.KURIER_API_KEY) {
+    try {
+      const k = await createKurierVerifier({
+        apiUrl: env.KURIER_API_URL,
+        apiKey: env.KURIER_API_KEY,
+        aggregationChainId: env.ZKVERIFY_AGGREGATION_REQUIRED ? env.CHAIN_ID : undefined,
+        domainId: env.ZKVERIFY_DOMAIN_ID,
+      });
+      zkverify = k.verifier;
+      const onChain = await client.readContract({ address: env.VAULT_ADDRESS, abi: bountyVaultAbi, functionName: "vkHash" }).catch(() => null);
+      if (onChain && onChain.toLowerCase() !== k.vkHash.toLowerCase()) {
+        console.warn(`vault vkHash ${onChain} differs from the registered mandate key ${k.vkHash}; set it with setVerification or payouts will fail`);
+      }
+      console.log(`mandate proofs to zkVerify via Kurier (vkHash ${k.vkHash}, target ${k.verifier.target})`);
+    } catch (err) {
+      console.warn(`zkVerify disabled: ${(err as Error).message}`);
+    }
+  } else if (!zkverify) console.warn("zkVerify disabled: KURIER_API_KEY is not set; mandate proofs will wait");
+  const payer = env.AGENT_PRIVATE_KEY ? createPayer(client, { rpcUrl: env.RPC_URL, chainId: env.CHAIN_ID, vault: env.VAULT_ADDRESS, agentKey: env.AGENT_PRIVATE_KEY }) : undefined;
+  if (payer) console.log(`payouts signed by ${payer.address}`);
+  else console.warn("payouts disabled: AGENT_PRIVATE_KEY is not set; verified bounties will wait");
   const watcher = githubToken
     ? new Watcher(db, {
         github: createGitHubClient({ token: githubToken, apiUrl: env.GITHUB_API_URL }),
         reviewer: review.reviewer,
         prover: proving.prover,
+        zkverify,
+        payer,
       })
     : undefined;
 

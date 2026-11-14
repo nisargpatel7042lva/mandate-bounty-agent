@@ -6,12 +6,29 @@ export const STATUS: Record<BountyStatus, { label: string; tone: "ok" | "warn" |
   claimed: { label: "PR merged, review in progress", tone: "info" },
   reviewed: { label: "reviewed, proving the merge", tone: "info" },
   review_failed: { label: "review failed", tone: "err" },
-  work_proven: { label: "merge proven (zkTLS)", tone: "ok" },
+  work_proven: { label: "merge proven, proving the mandate", tone: "info" },
   work_proof_failed: { label: "merge proof failed", tone: "err" },
+  mandate_proven: { label: "mandate proven on zkVerify, paying", tone: "info" },
+  mandate_rejected: { label: "payout outside the mandate", tone: "err" },
+  held_for_funder: { label: "held for funder review", tone: "warn" },
+  paid: { label: "paid", tone: "ok" },
+  payout_failed: { label: "payout failed", tone: "err" },
 };
 
 /** Statuses where the agent still has work to do, so the page keeps refreshing. */
-export const isPending = (s: BountyStatus) => s === "open" || s === "claimed" || s === "reviewed";
+export const isPending = (s: BountyStatus) => ["open", "claimed", "reviewed", "work_proven", "mandate_proven", "held_for_funder"].includes(s);
+
+/** Plain-English meaning of each mandate reason code. */
+export const MANDATE_REASON: Record<string, string> = {
+  ZERO_AMOUNT: "The payout amount is zero.",
+  OVER_CAP: "The payout is above the per-payout cap.",
+  OVER_BUDGET: "Paying this would take total spend above the budget.",
+  PAYEE_NOT_ALLOWED: "The wallet named in the PR is not on the bounty's allowlist.",
+  EXPIRED: "The mandate expired before the payout.",
+  MISSING_COMMITMENT: "The bounty has no mandate commitment (created before vault v2).",
+  COMMITMENT_MISMATCH: "The on-chain mandate commitment does not match the bounty's mandate.",
+  ZKVERIFY_FAILED: "zkVerify could not verify the mandate proof.",
+};
 
 export const RECOMMENDATION: Record<"approve" | "reject" | "needs_human", { label: string; tone: "ok" | "warn" | "err" }> = {
   approve: { label: "Recommends approval", tone: "ok" },

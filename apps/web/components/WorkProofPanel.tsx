@@ -74,7 +74,7 @@ export function WorkProofPanel({ bounty, agentUrl }: { bounty: BountyDto; agentU
           <li>That @{c.author} holds the key to {c.payee}. The author named it; whether they control it is on them.</li>
           <li>That {c.payee} is on this bounty&apos;s allowlist, or that the payout fits the funder&apos;s mandate. The mandate proof (next phase) checks both.</li>
           <li>Anything about GitHub beyond these fields, or that GitHub itself is honest. The proof trusts GitHub&apos;s API and the Reclaim attestor.</li>
-          <li>It is not on zkVerify yet: the next phase binds this claim into the mandate proof that zkVerify verifies.</li>
+          <li>zkVerify does not verify this zkTLS proof itself; its identifier is bound into the mandate proof, which zkVerify does verify.</li>
         </ul>
       </div>
       <p className="row-meta" data-testid="proof-reference">

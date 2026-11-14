@@ -34,13 +34,15 @@ beforeAll(async () => {
 afterAll(() => chain?.stop());
 
 const expiry = () => BigInt(Math.floor(Date.now() / 1000) + 7 * 86_400);
+/** Sync does not interpret the commitment; any non-zero bytes32 is accepted by the vault. */
+const COMMIT = `0x${"c0".repeat(32)}` as const;
 
 async function createAndFund(issue: bigint, fund: bigint) {
   const hash = await d.wallet.writeContract({
     address: d.bountyVault,
     abi: bountyVaultAbi,
     functionName: "createAndFund",
-    args: ["acme/widgets", issue, 250_000_000n, { perPayoutCap: 500_000_000n, totalBudget: 1_000_000_000n, expiry: expiry() }, [PAYEE], fund],
+    args: ["acme/widgets", issue, 250_000_000n, { perPayoutCap: 500_000_000n, totalBudget: 1_000_000_000n, expiry: expiry(), commitment: COMMIT }, [PAYEE], fund],
     account: FUNDER,
     chain: foundry,
   });
@@ -67,7 +69,7 @@ describe("chain sync against anvil", () => {
       address: d.bountyVault,
       abi: bountyVaultAbi,
       functionName: "updateMandate",
-      args: [1n, { perPayoutCap: 300_000_000n, totalBudget: 900_000_000n, expiry: expiry() }, [PAYEE, FUNDER]],
+      args: [1n, { perPayoutCap: 300_000_000n, totalBudget: 900_000_000n, expiry: expiry(), commitment: COMMIT }, [PAYEE, FUNDER]],
       account: FUNDER,
       chain: foundry,
     });
@@ -114,7 +116,7 @@ describe("chain sync against anvil", () => {
       address: d.bountyVault,
       abi: bountyVaultAbi,
       functionName: "createBounty",
-      args: ["acme/widgets", 9n, 0n, { perPayoutCap: 1n, totalBudget: 1n, expiry: expiry() }, [PAYEE]],
+      args: ["acme/widgets", 9n, 0n, { perPayoutCap: 1n, totalBudget: 1n, expiry: expiry(), commitment: COMMIT }, [PAYEE]],
       account: FUNDER,
       chain: foundry,
       gas: 500_000n,

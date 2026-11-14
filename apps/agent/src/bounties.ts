@@ -1,7 +1,8 @@
-import { BountySchema, type BountyDto, type ClaimDto, type CreateBountyRequest, type WorkProofDto } from "@mba/shared";
+import { BountySchema, type BountyDto, type ClaimDto, type CreateBountyRequest, type MandateProofDto, type PayoutDto, type WorkProofDto } from "@mba/shared";
+import { zkVerifyTxUrl } from "@mba/zkverify";
 import { desc, eq } from "drizzle-orm";
 import type { Db } from "./db/client.ts";
-import { bounties, claims, workProofs } from "./db/schema.ts";
+import { bounties, claims, mandateProofs, payouts, workProofs } from "./db/schema.ts";
 import { applyVaultEvents, type VaultEvent } from "./chain/events.ts";
 
 /** What the bounty service needs from the chain; faked in unit tests. */
@@ -58,12 +59,50 @@ export function workProofToDto(p: ProofRow): WorkProofDto {
   };
 }
 
-export function toDto(r: Row, claim?: ClaimRow | null, proof?: ProofRow | null): BountyDto {
+type MandateRow = typeof mandateProofs.$inferSelect;
+type PayoutRow = typeof payouts.$inferSelect;
+
+export function mandateProofToDto(m: MandateRow): MandateProofDto {
+  return {
+    state: m.state,
+    reasons: m.reasons,
+    commitment: m.commitment,
+    publicSignals: m.publicSignals ?? [],
+    checkedAt: m.checkedAt,
+    zkVerify: {
+      jobId: m.zkJobId,
+      status: m.zkStatus,
+      txHash: m.zkTxHash,
+      txUrl: m.zkTxHash ? zkVerifyTxUrl(m.zkTxHash) : null,
+      aggregationId: m.zkAggregationId,
+      domainId: m.zkDomainId,
+      statement: m.zkStatement,
+    },
+    error: m.error,
+    attempts: m.attempts,
+  };
+}
+
+export function payoutToDto(p: PayoutRow): PayoutDto {
+  return { state: p.state, payee: p.payee, amount: p.amount, txHash: p.txHash, paidAt: p.paidAt, error: p.error, attempts: p.attempts };
+}
+
+interface Joined {
+  claim?: ClaimRow | null;
+  proof?: ProofRow | null;
+  mandate?: MandateRow | null;
+  payout?: PayoutRow | null;
+}
+
+export function toDto(r: Row, j: Joined = {}): BountyDto {
   return {
     status: r.status,
     statusReason: r.statusReason,
-    claim: claim ? claimToDto(claim) : null,
-    workProof: proof ? workProofToDto(proof) : null,
+    claim: j.claim ? claimToDto(j.claim) : null,
+    workProof: j.proof ? workProofToDto(j.proof) : null,
+    mandateProof: j.mandate ? mandateProofToDto(j.mandate) : null,
+    payout: j.payout ? payoutToDto(j.payout) : null,
+    reviewOverride: r.reviewOverride,
     id: r.id,
     chainId: r.chainId,
     vault: r.vault,
@@ -82,18 +121,27 @@ export function toDto(r: Row, claim?: ClaimRow | null, proof?: ProofRow | null):
 }
 
 const withJoins = (db: Db) =>
-  db.select().from(bounties).leftJoin(claims, eq(claims.bountyId, bounties.id)).leftJoin(workProofs, eq(workProofs.bountyId, bounties.id));
+  db
+    .select()
+    .from(bounties)
+    .leftJoin(claims, eq(claims.bountyId, bounties.id))
+    .leftJoin(workProofs, eq(workProofs.bountyId, bounties.id))
+    .leftJoin(mandateProofs, eq(mandateProofs.bountyId, bounties.id))
+    .leftJoin(payouts, eq(payouts.bountyId, bounties.id));
+
+type JoinedRow = ReturnType<ReturnType<typeof withJoins>["all"]>[number];
+const fromRow = (r: JoinedRow) => toDto(r.bounties, { claim: r.claims, proof: r.work_proofs, mandate: r.mandate_proofs, payout: r.payouts });
 
 export function listBounties(db: Db): BountyDto[] {
   return withJoins(db)
     .orderBy(desc(bounties.id))
     .all()
-    .map((r) => toDto(r.bounties, r.claims, r.work_proofs));
+    .map(fromRow);
 }
 
 export function getBounty(db: Db, id: number): BountyDto | null {
   const row = withJoins(db).where(eq(bounties.id, id)).get();
-  return row ? toDto(row.bounties, row.claims, row.work_proofs) : null;
+  return row ? fromRow(row) : null;
 }
 
 /** The raw Reclaim proof, for independent re-verification. */

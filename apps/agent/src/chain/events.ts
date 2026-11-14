@@ -29,7 +29,9 @@ export type VaultEvent =
       payees: readonly `0x${string}`[];
     })
   | (Meta & { kind: "funded"; id: bigint; from: `0x${string}`; amount: bigint; totalFunded: bigint })
-  | (Meta & { kind: "mandateUpdated"; id: bigint; mandate: MandateFields; payees: readonly `0x${string}`[] });
+  | (Meta & { kind: "mandateUpdated"; id: bigint; mandate: MandateFields; payees: readonly `0x${string}`[] })
+  | (Meta & { kind: "reviewOverride"; id: bigint })
+  | (Meta & { kind: "released"; id: bigint; payee: `0x${string}`; amount: bigint; spentAfter: bigint });
 
 /** Decodes raw vault logs into VaultEvents, sorted by chain order. Unknown logs are dropped. */
 export function decodeVaultLogs(logs: Log[]): VaultEvent[] {
@@ -46,6 +48,12 @@ export function decodeVaultLogs(logs: Log[]): VaultEvent[] {
         break;
       case "MandateUpdated":
         out.push({ ...meta, kind: "mandateUpdated", ...log.args });
+        break;
+      case "ReviewOverrideApproved":
+        out.push({ ...meta, kind: "reviewOverride", id: log.args.id });
+        break;
+      case "PayoutReleased":
+        out.push({ ...meta, kind: "released", id: log.args.id, payee: log.args.payee, amount: log.args.amount, spentAfter: log.args.spentAfter });
         break;
     }
   }
@@ -100,6 +108,11 @@ export function applyVaultEvents(db: Db, ctx: { chainId: number; vault: `0x${str
           .onConflictDoNothing()
           .run();
         tx.update(bounties).set({ funded: e.totalFunded.toString(), updatedAt: now }).where(eq(bounties.id, id)).run();
+      } else if (e.kind === "reviewOverride") {
+        tx.update(bounties).set({ reviewOverride: true, updatedAt: now }).where(eq(bounties.id, id)).run();
+      } else if (e.kind === "released") {
+        // The chain is the source of truth for payment; the payout step reconciles against this.
+        tx.update(bounties).set({ spent: e.spentAfter.toString(), paidTx: e.txHash, updatedAt: now }).where(eq(bounties.id, id)).run();
       } else {
         tx.update(bounties)
           .set({

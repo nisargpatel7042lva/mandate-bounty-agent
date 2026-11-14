@@ -114,9 +114,9 @@ test("the agent proves the merge and explains what the proof establishes", async
   await expect(notEstablished).toContainText("That the code is correct or meets the acceptance criteria");
   await expect(notEstablished).toContainText("holds the key to");
   await expect(notEstablished).toContainText("is on this bounty's allowlist");
-  await expect(notEstablished).toContainText("not on zkVerify yet");
+  await expect(notEstablished).toContainText("its identifier is bound into the mandate proof");
 
-  await expect(page.getByTestId("status")).toHaveText("merge proven (zkTLS)");
+  // The agent moves straight on to the mandate proof and payout, so the status is checked in the next test.
 
   // The proof reference links to the raw, re-verifiable proof served by the agent.
   const ref = page.getByTestId("proof-reference");
@@ -126,4 +126,69 @@ test("the agent proves the merge and explains what the proof establishes", async
   const raw = await (await request.get(href ?? "")).json();
   expect(raw.identifier).toBe(identifier);
   expect(JSON.stringify(raw)).not.toContain("e2e-github-token");
+});
+
+// Phase 4/5. The agent proves the mandate (real Groth16), a local zkVerify stand-in marks the
+// statement leaf on MockZkVerify, and the vault verifies it on-chain before paying the payee.
+test("the vault pays once the mandate proof is verified, and the receipt shows every proof", async ({ page }) => {
+  await page.goto("/bounties/1");
+  await expect(page.getByTestId("status")).toHaveText("paid", { timeout: 90_000 });
+  await expect(page.getByTestId("payout-state")).toHaveText("paid");
+  await expect(page.getByTestId("zkverify-status")).toContainText("AggregationPublished");
+
+  await page.getByTestId("receipt-link").click();
+  await expect(page).toHaveURL(/\/receipts\/1$/);
+  await expect(page.getByTestId("r-amount")).toHaveText("250 tUSDC");
+  await expect(page.getByTestId("r-payee")).toHaveText(new RegExp(PAYEE, "i"));
+  await expect(page.getByTestId("r-payment-tx")).toHaveText(/^0x[0-9a-f]{64}$/);
+  await expect(page.getByTestId("r-pr")).toContainText("acme/widgets#7 Wrap widgets on narrow screens");
+  await expect(page.getByTestId("r-author")).toHaveText("@octocat");
+  await expect(page.getByTestId("r-verdict")).toContainText("Recommends approval");
+  await expect(page.getByTestId("r-zktls-claim")).toContainText("acme/widgets#7 merged into main");
+  await expect(page.getByTestId("r-zktls-id")).toHaveText(/^0x[0-9a-f]{64}$/);
+  await expect(page.getByTestId("r-zktls-raw")).toHaveAttribute("href", /\/bounties\/1\/proof$/);
+  await expect(page.getByTestId("r-commitment")).toHaveText(/^0x[0-9a-f]{64}$/);
+  await expect(page.getByTestId("r-zkverify-status")).toHaveText("AggregationPublished");
+  await expect(page.getByTestId("r-zkverify-tx")).toHaveText(/^0x7a7a/);
+  await expect(page.getByTestId("r-aggregation")).toContainText("#1, domain 0, leaf 0x");
+  // Eight public inputs: commitment, bounty id, amount, payee, spent, now, claim hi/lo.
+  expect((await page.getByTestId("r-public-inputs").innerText()).split(", ")).toHaveLength(8);
+});
+
+async function createBounty(page: import("@playwright/test").Page, issue: number, title: string) {
+  await page.goto("/bounties/new");
+  await page.getByRole("button", { name: "Connect wallet" }).click();
+  await expect(page.getByTestId("account")).toHaveText(/0x7099…79C8/);
+  await page.getByLabel("Repository").fill("acme/widgets");
+  await page.getByLabel("Issue number").fill(String(issue));
+  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Acceptance criteria").fill("No horizontal scroll at 360px.");
+  await page.getByLabel("Payout (tUSDC)").fill("100");
+  await page.getByLabel("Allowed payees").fill(PAYEE);
+  await page.getByLabel("Fund now (tUSDC)").fill("100");
+  await page.getByRole("button", { name: "Create and fund bounty" }).click();
+  await expect(page).toHaveURL(/\/bounties\/\d+$/);
+  return Number(page.url().split("/").pop());
+}
+
+// Rejection path 1: the advisory review says "not met". Both proofs still pass, but the agent holds
+// the payout; it pays only after the funder approves on-chain.
+test("a 'not met' review holds the payout until the funder approves", async ({ page }) => {
+  const id = await createBounty(page, 43, "Remove horizontal scroll");
+  await expect(page.getByTestId("status")).toHaveText("held for funder review", { timeout: 90_000 });
+  await expect(page.getByTestId("recommendation")).not.toHaveText("Recommends approval");
+  await expect(page.getByTestId("payout")).toContainText("Nothing is paid unless the funder approves on-chain");
+
+  await page.getByRole("button", { name: "Approve payout anyway (funder)" }).click();
+  await expect(page.getByTestId("status")).toHaveText("paid", { timeout: 90_000 });
+  await page.goto(`/receipts/${id}`);
+  await expect(page.getByTestId("r-amount")).toHaveText("100 tUSDC");
+  await expect(page.getByTestId("r-verdict")).toContainText("funder approved despite the review");
+});
+
+// Rejection path 2: a second bounty whose issue was closed by the already-paid PR #7 is refused.
+test("a PR that already got paid cannot be paid again by another bounty", async ({ page }) => {
+  await createBounty(page, 44, "Same fix, second bounty");
+  await expect(page.getByTestId("status")).toHaveText("payout failed", { timeout: 90_000 });
+  await expect(page.getByTestId("payout")).toContainText("PR #7 in acme/widgets was already paid by bounty #1");
 });
