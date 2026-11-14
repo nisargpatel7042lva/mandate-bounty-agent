@@ -1,6 +1,9 @@
 {
-  "bountyVault": "0xbe34D63C55FbE509d5196857ed23B461eA314f79",
+  "agent": "0x42BeAdAb8488064d61e11D273633E131B17aBD5A",
+  "aggregationRequired": true,
+  "bountyVault": "0x3c4eB442e4e4aD8a19785970e911aA7C2221E046",
   "chainId": 11155111,
-  "deployBlock": 12018118,
-  "mockUsdc": "0xe6a0fb19a39f84dEdd30Aa02643A338Ae49E31c2"
+  "deployBlock": 12133209,
+  "mockUsdc": "0xe6a0fb19a39f84dEdd30Aa02643A338Ae49E31c2",
+  "zkVerify": "0xEA0A0f1EfB1088F4ff0Def03741Cb2C64F89361E"
 }
