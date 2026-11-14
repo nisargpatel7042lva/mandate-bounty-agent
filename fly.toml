@@ -1,0 +1,44 @@
+# Fly.io config for the agent (always on: the watcher must keep polling GitHub and zkVerify).
+# Secrets (fly secrets set): GITHUB_TOKEN, GEMINI_API_KEY, RECLAIM_APP_ID, RECLAIM_APP_SECRET,
+# KURIER_API_KEY, AGENT_PRIVATE_KEY. Everything else is below.
+app = "mandate-bounty-agent"
+primary_region = "bom"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8787"
+  DATABASE_PATH = "/data/mandate-bounty.sqlite"
+  CHAIN_ID = "11155111"
+  RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com"
+  VAULT_ADDRESS = "0x3c4eB442e4e4aD8a19785970e911aA7C2221E046"
+  VAULT_DEPLOY_BLOCK = "12133209"
+  REVIEW_PROVIDER = "gemini"
+  KURIER_API_URL = "https://api-testnet.kurier.xyz/api/v1"
+  ZKVERIFY_AGGREGATION_REQUIRED = "true"
+  ZKVERIFY_DOMAIN_ID = "0"
+  # Set to the Vercel URL of the web app once it exists.
+  CORS_ORIGINS = "http://localhost:3000"
+
+[[mounts]]
+  source = "mba_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
