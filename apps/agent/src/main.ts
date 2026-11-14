@@ -54,7 +54,11 @@ export async function startAgent(env: Env, overrides: AgentOverrides = {}) {
   let zkverify: ZkVerifier | undefined = overrides.zkverify;
   if (!zkverify && env.KURIER_API_KEY) {
     try {
+      const aggregationAddress = env.ZKVERIFY_AGGREGATION_REQUIRED
+        ? await client.readContract({ address: env.VAULT_ADDRESS, abi: bountyVaultAbi, functionName: "zkVerify" }).catch(() => null)
+        : null;
       const k = await createKurierVerifier({
+        aggregationCheck: aggregationAddress ? { client, address: aggregationAddress } : undefined,
         apiUrl: env.KURIER_API_URL,
         apiKey: env.KURIER_API_KEY,
         aggregationChainId: env.ZKVERIFY_AGGREGATION_REQUIRED ? env.CHAIN_ID : undefined,

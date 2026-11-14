@@ -11,8 +11,13 @@ export const MAX_ZKVERIFY_ATTEMPTS = 3;
 export interface ZkVerifier {
   submit(proof: MandateProof): Promise<{ jobId: string }>;
   status(jobId: string): Promise<JobState>;
-  /** "AggregationPublished" when the vault checks aggregation on-chain, else "Finalized". */
+  /** "Aggregated" when the vault checks aggregation on-chain, else "Finalized". */
   target: JobStatus;
+  /**
+   * Whether the aggregation in `state` is visible to the vault on the destination chain. Kurier's
+   * status can stay at "Aggregated" after the root is published, so the agent checks the chain itself.
+   */
+  published?(state: JobState, domainId: number): Promise<boolean>;
   /** zkVerify domain the aggregation is published under (the vault needs it). */
   domainId: number;
 }
@@ -117,6 +122,21 @@ export async function mandateStep(db: Db, zk: ZkVerifier | undefined, id: number
     const reason = `zkVerify: ${state.status} (waiting for ${zk.target})`;
     setStatus("work_proven", reason);
     return { action: "waiting", reason };
+  }
+  if (zk.published) {
+    let onChain: boolean;
+    try {
+      onChain = await zk.published(state, zk.domainId);
+    } catch (err) {
+      const reason = `zkVerify: aggregation check on the destination chain failed: ${(err as Error).message.split("\n")[0]}`;
+      setStatus("work_proven", reason);
+      return { action: "waiting", reason };
+    }
+    if (!onChain) {
+      const reason = `zkVerify: ${state.status}, waiting for aggregation #${state.aggregationId ?? "?"} to reach the destination chain`;
+      setStatus("work_proven", reason);
+      return { action: "waiting", reason };
+    }
   }
   save({ state: "verified" });
   setStatus("mandate_proven", null);

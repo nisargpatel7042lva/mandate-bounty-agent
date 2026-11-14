@@ -69,7 +69,7 @@ function fakeZk(statuses: JobState["status"][], over: Partial<ZkVerifier> = {}) 
         status,
         chainId: 31337,
         txHash: "0xzktx",
-        ...(status === "AggregationPublished"
+        ...(status === "Aggregated" || status === "AggregationPublished"
           ? { aggregationId: 29537, statement: "0xleaf", aggregationDetails: { receipt: "0xr", receiptBlockHash: "0xb", root: "0xr", leaf: "0xleaf", leafIndex: 6, numberOfLeaves: 8, merkleProof: ["0x01", "0x02"] } }
           : {}),
       };
@@ -117,6 +117,27 @@ describe("mandate step", () => {
       status: "mandate_proven",
       mandateProof: { state: "verified", zkVerify: { jobId: "job-1", status: "AggregationPublished", txHash: "0xzktx", aggregationId: 29537, statement: "0xleaf" } },
     });
+  }, 60_000);
+
+  it("with an on-chain check, waits at Aggregated until the destination chain confirms the aggregation", async () => {
+    const { db, id, now } = await setup();
+    const seen: unknown[] = [];
+    const answers: (boolean | Error)[] = [false, new Error("rpc down\nstack"), true];
+    const { zk } = fakeZk(["Aggregated"], {
+      target: "Aggregated",
+      published: async (state, domainId) => {
+        seen.push([state.aggregationId, domainId]);
+        const a = answers.shift();
+        if (a instanceof Error) throw a;
+        return a as boolean;
+      },
+    });
+    expect(await mandateStep(db, zk, id, now)).toMatchObject({ action: "waiting", reason: "zkVerify: Aggregated, waiting for aggregation #29537 to reach the destination chain" });
+    expect(dto(db).status).toBe("work_proven");
+    expect(await mandateStep(db, zk, id, now)).toMatchObject({ action: "waiting", reason: "zkVerify: aggregation check on the destination chain failed: rpc down" });
+    expect(await mandateStep(db, zk, id, now)).toEqual({ action: "mandate_proven" });
+    expect(seen).toEqual([[29537, 0], [29537, 0], [29537, 0]]);
+    expect(dto(db)).toMatchObject({ status: "mandate_proven", mandateProof: { state: "verified", zkVerify: { status: "Aggregated", aggregationId: 29537 } } });
   }, 60_000);
 
   it.each([

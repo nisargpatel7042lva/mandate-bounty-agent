@@ -1,6 +1,6 @@
 // Smoke test of the zkVerify leg on testnet: proves one sample mandate, submits it to zkVerify via
-// Kurier with aggregation to Ethereum Sepolia, and prints each status until the aggregation is
-// published (or the wait times out). Uses no chain funds. Usage:
+// Kurier with aggregation to Ethereum Sepolia, and prints each status until it is aggregated (check
+// the root on Sepolia with scripts/zkverify-job.ts) or the wait times out. Uses no chain funds. Usage:
 //   node --env-file=../../.env --experimental-strip-types scripts/zkverify-smoke.ts
 import { proveMandate } from "@mba/circuits";
 import { createKurierClient, statementLeaf } from "@mba/zkverify";
@@ -25,7 +25,7 @@ while (Date.now() < deadline) {
     last = s.status;
     console.log(new Date().toISOString(), s.status, s.txHash ?? "", s.aggregationId ?? "", s.statement ?? "");
   }
-  if (s.status === "AggregationPublished" || /Fail|Error/i.test(s.status)) {
+  if (s.status === "Aggregated" || s.status === "AggregationPublished" || /Fail|Error/i.test(s.status)) {
     console.log(JSON.stringify(s.aggregationDetails ?? {}, null, 0).slice(0, 400));
     break;
   }
