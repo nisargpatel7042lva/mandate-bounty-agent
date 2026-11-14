@@ -88,3 +88,16 @@ Current Sepolia deployment: BountyVault v2 `0x3c4eB442e4e4aD8a19785970e911aA7C22
 `apps/agent/scripts/zkverify-smoke.ts` sends one sample mandate proof through zkVerify aggregation, with no chain funds.
 
 The circuit's trusted setup is a single-party testnet ceremony. It is fine for a demo and not for production.
+
+## First live run (Ethereum Sepolia + zkVerify testnet, 2026-11-14)
+
+Bounty #1 on vault v2, for [mba-demo issue #1](https://github.com/nisargpatel7042lva/mba-demo/issues/1), was closed by merged PR #3.
+From funding to payment took about five minutes, with no human step:
+
+| Step | Evidence |
+| --- | --- |
+| Create and fund (400 tUSDC, payout 250) | [0xe173dd7a…](https://sepolia.etherscan.io/tx/0xe173dd7af27a6017e7a9c7d3a6c39c4b981ea43bf4df0578be7f29b0b7b1302e) |
+| Advisory review (Gemini) | approve, confidence 98% |
+| zkTLS proof of the merge (Reclaim) | claim ID `0xec79cb20…e5ff91`, 1 attestor signature |
+| Mandate proof verified on zkVerify | [extrinsic 0x867ef853…](https://zkverify-testnet.subscan.io/extrinsic/0x867ef853b1f1f6ff4729883337c749e66812d968c550bcfd20044ae14391c6fe), aggregation #270047, domain 0 |
+| Vault checks the aggregation on-chain and pays | [0x53cac6e8…](https://sepolia.etherscan.io/tx/0x53cac6e8e6c9f74bb67e4e651815b7a3f6f058536cebacfa8f5856ce59b88c4a): `PayoutReleased` of 250 tUSDC to `0x1890…efE2`, with the zkTLS claim ID and the zkVerify leaf |
