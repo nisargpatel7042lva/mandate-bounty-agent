@@ -40,7 +40,7 @@ function every(ms: number, name: string, fn: () => Promise<void>) {
 }
 
 export async function startAgent(env: Env, overrides: AgentOverrides = {}) {
-  const { db } = openDb(env.DATABASE_PATH);
+  const { db } = openDb(env.DATABASE_PATH, env.SEED_DATABASE_PATH);
   const client = createPublicClient({ transport: http(env.RPC_URL) });
   const ctx = { client, chainId: env.CHAIN_ID, vault: env.VAULT_ADDRESS, deployBlock: env.VAULT_DEPLOY_BLOCK };
 

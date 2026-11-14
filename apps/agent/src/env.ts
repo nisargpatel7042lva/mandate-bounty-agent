@@ -12,6 +12,8 @@ const Secret = z
 const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8787),
   DATABASE_PATH: z.string().default("./data/mandate-bounty.sqlite"),
+  /** Optional starting copy of the database, used only when DATABASE_PATH does not exist yet. */
+  SEED_DATABASE_PATH: z.string().optional(),
   RPC_URL: z.url(),
   CHAIN_ID: z.coerce.number().int().positive(),
   VAULT_ADDRESS: Address,

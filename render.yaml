@@ -1,0 +1,50 @@
+# Render Blueprint for the agent (free web service: no card, 512 MB, sleeps after 15 min idle,
+# disk wiped on restart). The image ships seed/mandate-bounty.sqlite so past bounties keep their
+# proofs and receipts; .github/workflows/keepalive.yml pings /health so the watcher stays awake.
+# Secrets (sync: false) are set in the Render dashboard or via the API, never committed.
+services:
+  - type: web
+    name: mandate-bounty-agent
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=400
+      - key: DATABASE_PATH
+        value: /data/mandate-bounty.sqlite
+      - key: SEED_DATABASE_PATH
+        value: /app/apps/agent/seed/mandate-bounty.sqlite
+      - key: CHAIN_ID
+        value: "11155111"
+      - key: RPC_URL
+        value: https://ethereum-sepolia-rpc.publicnode.com
+      - key: VAULT_ADDRESS
+        value: "0x3c4eB442e4e4aD8a19785970e911aA7C2221E046"
+      - key: VAULT_DEPLOY_BLOCK
+        value: "12133209"
+      - key: REVIEW_PROVIDER
+        value: gemini
+      - key: KURIER_API_URL
+        value: https://api-testnet.kurier.xyz/api/v1
+      - key: ZKVERIFY_AGGREGATION_REQUIRED
+        value: "true"
+      - key: ZKVERIFY_DOMAIN_ID
+        value: "0"
+      - key: CORS_ORIGINS
+        value: https://mandate-bounty-agent.vercel.app,http://localhost:3000
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: RECLAIM_APP_ID
+        sync: false
+      - key: RECLAIM_APP_SECRET
+        sync: false
+      - key: KURIER_API_KEY
+        sync: false
+      - key: AGENT_PRIVATE_KEY
+        sync: false

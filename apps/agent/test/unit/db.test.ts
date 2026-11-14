@@ -37,6 +37,30 @@ describe("SQLite persistence", () => {
     openDb(file).close();
     expect(() => openDb(file).close()).not.toThrow();
   });
+
+  it("starts from the seed copy only when the database file does not exist yet", () => {
+    const tmp = mkdtempSync(path.join(tmpdir(), "mba-db-"));
+    dir = tmp;
+    const seed = path.join(tmp, "seed.sqlite");
+    const s = openDb(seed);
+    applyVaultEvents(s.db, ctx, [createdEvent(1), fundedEvent(1, 100n, 100n, 1)]);
+    s.close();
+
+    // Fresh disk: the seed is copied in.
+    const file = path.join(tmp, "data", "live.sqlite");
+    const first = openDb(file, seed);
+    expect(getBounty(first.db, 1)).toMatchObject({ id: 1, funded: "100" });
+    applyVaultEvents(first.db, ctx, [createdEvent(2)]);
+    first.close();
+
+    // Existing database: the seed is ignored, so live data is never overwritten.
+    const second = openDb(file, seed);
+    expect(getBounty(second.db, 2)).toMatchObject({ id: 2 });
+    second.close();
+
+    // A missing seed is not an error.
+    expect(() => openDb(path.join(tmp, "other.sqlite"), path.join(tmp, "missing.sqlite")).close()).not.toThrow();
+  });
 });
 
 describe("applyVaultEvents", () => {
