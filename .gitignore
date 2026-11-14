@@ -21,3 +21,5 @@ packages/contracts/deployments/31337.json
 *.sqlite-shm
 apps/agent/data/
 *.recovery.lock
+# The agent seed database is a scanned, secret-free snapshot shipped in the image (render.yaml).
+!apps/agent/seed/mandate-bounty.sqlite
