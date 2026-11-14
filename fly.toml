@@ -18,8 +18,7 @@ primary_region = "bom"
   KURIER_API_URL = "https://api-testnet.kurier.xyz/api/v1"
   ZKVERIFY_AGGREGATION_REQUIRED = "true"
   ZKVERIFY_DOMAIN_ID = "0"
-  # Set to the Vercel URL of the web app once it exists.
-  CORS_ORIGINS = "http://localhost:3000"
+  CORS_ORIGINS = "https://mandate-bounty-agent.vercel.app,http://localhost:3000"
 
 [[mounts]]
   source = "mba_data"
