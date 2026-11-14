@@ -65,7 +65,8 @@ test("funder creates and funds a bounty, then sees it listed", async ({ page }) 
   await expect(page).toHaveURL(/\/bounties\/1$/);
   await expect(page.getByRole("heading", { name: "Fix widget overflow on mobile" })).toBeVisible();
   await expect(page.getByTestId("funded")).toContainText("400 tUSDC of 1,000 tUSDC budget");
-  await expect(page.getByText(PAYEE.toLowerCase())).toBeVisible();
+  // The payee appears in the mandate allowlist (and, once proven, in the proof panel too).
+  await expect(page.getByText(PAYEE.toLowerCase()).first()).toBeVisible();
 
   await page.getByRole("link", { name: "Mandate Bounty Agent" }).click();
   const list = page.getByRole("list", { name: "Bounties" });
@@ -89,8 +90,40 @@ test("the agent detects the merged PR and shows its advisory review", async ({ p
   await expect(review).toContainText("advice only: it cannot release or block a payout");
   await expect(review).toContainText("Met: Widgets wrap instead of overflowing below 400px");
   await expect(review).toContainText("confidence 86%");
-  await expect(page.getByTestId("status")).toHaveText("reviewed (advisory)");
+  // The status moves past "reviewed" once the merge is proven (Phase 3), so it is checked there.
 
   // Money fields are untouched by the review.
   await expect(page.getByTestId("funded")).toContainText("400 tUSDC of 1,000 tUSDC budget");
+});
+
+// Phase 3. The agent proves the merge over zkTLS (a local test attestor stands in for Reclaim),
+// verifies the proof, and the page explains what the proof does and does not show.
+test("the agent proves the merge and explains what the proof establishes", async ({ page, request }) => {
+  await page.goto("/bounties/1");
+
+  const establishes = page.getByTestId("proof-establishes");
+  await expect(establishes).toContainText("pull request #7 in acme/widgets is merged, into main, on 2026-10-28 10:00 UTC");
+  await expect(establishes).toContainText("names @octocat as the pull request's author");
+  // The payee wallet comes from the PR description, written by the author, and is attested too.
+  await expect(page.getByTestId("proof-payee")).toHaveText(PAYEE.toLowerCase());
+  await expect(establishes).toContainText("never edited after it was opened, so the author chose this wallet");
+  await expect(establishes).toContainText("bound to this bounty (chain 31337, bounty #1)");
+  await expect(establishes).toContainText("token was used privately and is not in the proof");
+
+  const notEstablished = page.getByTestId("proof-does-not-establish");
+  await expect(notEstablished).toContainText("That the code is correct or meets the acceptance criteria");
+  await expect(notEstablished).toContainText("holds the key to");
+  await expect(notEstablished).toContainText("is on this bounty's allowlist");
+  await expect(notEstablished).toContainText("not on zkVerify yet");
+
+  await expect(page.getByTestId("status")).toHaveText("merge proven (zkTLS)");
+
+  // The proof reference links to the raw, re-verifiable proof served by the agent.
+  const ref = page.getByTestId("proof-reference");
+  const identifier = (await ref.locator(".mono").innerText()).trim();
+  expect(identifier).toMatch(/^0x[0-9a-f]{64}$/);
+  const href = await ref.getByRole("link", { name: /raw proof/ }).getAttribute("href");
+  const raw = await (await request.get(href ?? "")).json();
+  expect(raw.identifier).toBe(identifier);
+  expect(JSON.stringify(raw)).not.toContain("e2e-github-token");
 });

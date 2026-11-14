@@ -1,4 +1,4 @@
-import type { IssueCloseInfo, PullRequestNode } from "../../src/github/client.ts";
+import type { IssueCloseInfo, PrFacts, PullRequestNode } from "../../src/github/client.ts";
 
 // Shapes match GitHub's GraphQL response for ISSUE_CLOSE_QUERY.
 
@@ -48,3 +48,10 @@ export const SAMPLE_DIFF = `diff --git a/src/grid.css b/src/grid.css
 +  flex-wrap: wrap;
  }
 `;
+
+export const E2E_PAYEE = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"; // anvil dev account 2
+
+/** PR facts as GitHub's GraphQL returns them for the prFacts query (author octocat, payee line present). */
+export function prFacts(over: Partial<PrFacts> = {}): PrFacts {
+  return { number: 7, merged: true, author: { login: "octocat" }, editor: null, body: `Closes #42\n\nmba-payee: ${E2E_PAYEE}`, ...over };
+}

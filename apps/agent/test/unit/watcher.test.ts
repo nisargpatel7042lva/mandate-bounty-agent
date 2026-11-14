@@ -10,7 +10,7 @@ import type { GitHubClient, IssueCloseInfo } from "../../src/github/client.ts";
 import type { ReviewOutcome, Reviewer } from "../../src/review/reviewer.ts";
 import { MAX_REVIEW_ATTEMPTS, Watcher, processBounty } from "../../src/watcher.ts";
 import { VAULT, createdEvent, fakeReader, fundedEvent } from "./fixtures.ts";
-import { closedIssue, mergedPr, openIssue, SAMPLE_DIFF } from "./github-fixtures.ts";
+import { closedIssue, mergedPr, openIssue, prFacts, SAMPLE_DIFF } from "./github-fixtures.ts";
 
 const NOW = 1_900_000_000;
 const verdict = {
@@ -28,7 +28,7 @@ function setup(opts: { issue?: IssueCloseInfo; outcomes?: ReviewOutcome[]; funde
   let issue = opts.issue ?? closedIssue(mergedPr());
   const outcomes = [...(opts.outcomes ?? [{ ok: true, verdict, model: "claude-opus-5-5" }])];
   const reviewCalls: unknown[] = [];
-  const github: GitHubClient = { issueCloseInfo: async () => issue, pullDiff: async () => SAMPLE_DIFF };
+  const github: GitHubClient = { issueCloseInfo: async () => issue, pullDiff: async () => SAMPLE_DIFF, prFacts: async () => prFacts() };
   const reviewer: Reviewer = {
     review: async (input) => {
       reviewCalls.push(input);
@@ -107,7 +107,7 @@ describe("watcher state machine", () => {
     const { db, deps } = setup();
     const noReviewer = { github: deps.github, now: deps.now };
     expect((await processBounty(db, noReviewer, 1)).action).toBe("waiting");
-    expect(getBounty(db, 1)).toMatchObject({ status: "claimed", statusReason: expect.stringMatching(/no Claude API key/), claim: { prNumber: 7, review: { attempts: 0 } } });
+    expect(getBounty(db, 1)).toMatchObject({ status: "claimed", statusReason: expect.stringMatching(/no review LLM key/), claim: { prNumber: 7, review: { attempts: 0 } } });
 
     // Once a reviewer is configured, the same claim gets reviewed.
     expect((await processBounty(db, deps, 1)).action).toBe("reviewed");

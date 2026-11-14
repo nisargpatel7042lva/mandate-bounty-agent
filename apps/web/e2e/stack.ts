@@ -12,7 +12,8 @@ import { startStubs } from "./stubs.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "..");
-const agentEntry = path.resolve(webDir, "../agent/src/server.ts");
+// The real agent, with a local test attestor in place of Reclaim (see agent-entry.ts).
+const agentEntry = path.join(here, "agent-entry.ts");
 const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
 
 const stubs = await startStubs();

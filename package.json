@@ -10,8 +10,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "build": "pnpm -r --if-present build",
-    "test": "pnpm -r --if-present test",
-    "test:integration": "pnpm -r --if-present test:integration",
+    "test": "pnpm -r --workspace-concurrency=1 --if-present test",
+    "test:integration": "pnpm -r --workspace-concurrency=1 --if-present test:integration",
     "test:e2e": "pnpm -r --if-present test:e2e",
     "check": "pnpm typecheck && pnpm lint && pnpm build && pnpm test && pnpm test:integration && pnpm test:e2e"
   },

@@ -6,6 +6,10 @@ import type { AddressInfo } from "node:net";
 export const E2E_REPO = "acme/widgets";
 export const E2E_ISSUE = 42;
 export const E2E_PR = 7;
+export const E2E_PR_AUTHOR = "octocat";
+export const E2E_MERGED_AT = "2026-10-28T10:00:00Z";
+/** The bounty's allowed payee in the E2E (anvil dev account 2), named in the PR description. */
+export const E2E_PAYEE = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC";
 
 const issue = {
   state: "CLOSED",
@@ -24,11 +28,11 @@ const issue = {
           title: "Wrap widgets on narrow screens",
           body: `Closes #${E2E_ISSUE}`,
           merged: true,
-          mergedAt: "2026-10-28T10:00:00Z",
+          mergedAt: E2E_MERGED_AT,
           baseRefName: "main",
           headRefOid: "a".repeat(40),
           mergeCommit: { oid: "b".repeat(40) },
-          author: { login: "octocat" },
+          author: { login: E2E_PR_AUTHOR },
           mergedBy: { login: "maintainer" },
           repository: { nameWithOwner: E2E_REPO },
         },
@@ -58,8 +62,21 @@ const listen = (server: Server) =>
 
 export async function startStubs() {
   const github = createServer(async (req, res) => {
-    await readBody(req);
-    if (req.method === "POST" && req.url === "/graphql") {
+    const body = await readBody(req);
+    if (req.method === "POST" && req.url === "/graphql" && body.includes("pullRequest(number")) {
+      // The PR facts query (same one the zkTLS proof attests): payee line written by the author.
+      const pullRequest = {
+        number: E2E_PR,
+        merged: true,
+        mergedAt: E2E_MERGED_AT,
+        baseRefName: "main",
+        author: { login: E2E_PR_AUTHOR },
+        editor: null,
+        repository: { nameWithOwner: E2E_REPO },
+        body: `Closes #${E2E_ISSUE}\n\nmba-payee: ${E2E_PAYEE}`,
+      };
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ data: { repository: { pullRequest } } }));
+    } else if (req.method === "POST" && req.url === "/graphql") {
       res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ data: { repository: { issue } } }));
     } else if (req.method === "GET" && req.url === `/repos/${E2E_REPO}/pulls/${E2E_PR}`) {
       res.writeHead(200, { "content-type": "text/plain" }).end(diff);

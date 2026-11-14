@@ -1,7 +1,7 @@
 import { CreateBountyRequestSchema, type ApiError } from "@mba/shared";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { BountyError, getBounty, listBounties, registerBounty, type VaultReader } from "./bounties.ts";
+import { BountyError, getBounty, getRawWorkProof, listBounties, registerBounty, type VaultReader } from "./bounties.ts";
 import type { Db } from "./db/client.ts";
 import type { Watcher } from "./watcher.ts";
 
@@ -47,6 +47,14 @@ export function createApp({ db, chain, watcher, corsOrigins }: AppDeps) {
       if (err instanceof BountyError) return c.json<ApiError>({ error: err.message }, err.status);
       throw err;
     }
+  });
+
+  // The raw zkTLS proof, so anyone can re-verify it with Reclaim's SDK or packages/zktls.
+  app.get("/bounties/:id/proof", (c) => {
+    const id = parseId(c.req.param("id"));
+    if (!id) return c.json<ApiError>({ error: "id must be a positive integer" }, 400);
+    const proof = getRawWorkProof(db, id);
+    return proof ? c.json(proof) : c.json<ApiError>({ error: "no work proof for this bounty" }, 404);
   });
 
   // Runs detection + review now instead of waiting for the next poll. Safe to call repeatedly.

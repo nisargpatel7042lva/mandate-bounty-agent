@@ -35,6 +35,12 @@ const EnvSchema = z.object({
   GEMINI_API_KEY: Secret,
   GEMINI_MODEL: z.string().min(1).optional(),
   GEMINI_BASE_URL: z.url().optional(),
+
+  /** Reclaim zkFetch app credentials (dev.reclaimprotocol.org). Without them, work proofs wait. */
+  RECLAIM_APP_ID: Secret,
+  RECLAIM_APP_SECRET: Secret,
+  /** Comma-separated trusted attestor addresses. Unset: fetched from Reclaim's published list. */
+  RECLAIM_ATTESTORS: z.string().optional(),
 });
 export type Env = z.infer<typeof EnvSchema>;
 

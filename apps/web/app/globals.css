@@ -127,3 +127,8 @@ dl.kv dd { margin: 0; overflow-wrap: anywhere; }
 .criteria li { border-left: 3px solid var(--border); padding-left: 10px; }
 .criteria li.met { border-color: var(--ok); }
 .criteria li.unmet { border-color: var(--danger); }
+
+.proof-box { margin-bottom: 12px; }
+.proof-box h3 { font-size: 15px; margin: 0 0 8px; }
+.proof-box ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.proof-box.ok { border-color: var(--ok); }

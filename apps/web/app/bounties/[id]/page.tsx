@@ -4,6 +4,7 @@ import type { BountyDto } from "@mba/shared";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ClaimPanel } from "../../../components/ClaimPanel.tsx";
+import { WorkProofPanel } from "../../../components/WorkProofPanel.tsx";
 import { useConfig } from "../../../components/use-config.ts";
 import { agentApi } from "../../../lib/api.ts";
 import { addressUrl, txUrl, type WebConfig } from "../../../lib/config.ts";
@@ -142,6 +143,9 @@ export default function BountyDetailPage() {
       </div>
       {checkError && <p className="notice err">{checkError}</p>}
       <ClaimPanel bounty={bounty} />
+
+      <h2>Proof of merge (zkTLS)</h2>
+      <WorkProofPanel bounty={bounty} agentUrl={config.agentUrl} />
 
       <h2>On-chain</h2>
       <div className="card">

@@ -1,10 +1,22 @@
 import { z } from "zod";
+import { prQueryBody } from "@mba/zktls";
 
-/** Minimal GitHub client over fetch: one GraphQL query for the issue's close, REST for the diff. */
+/** Minimal GitHub client over fetch: GraphQL for the issue's close and PR facts, REST for the diff. */
 export interface GitHubClient {
   issueCloseInfo(repo: string, issueNumber: number): Promise<IssueCloseInfo>;
   pullDiff(repo: string, prNumber: number): Promise<string>;
+  /** The same query the zkTLS proof attests, asked directly, to check the payee line before proving. */
+  prFacts(repo: string, prNumber: number): Promise<PrFacts>;
 }
+
+export const PrFactsSchema = z.object({
+  number: z.number().int(),
+  merged: z.boolean(),
+  author: z.object({ login: z.string() }).nullable(),
+  editor: z.object({ login: z.string() }).nullable(),
+  body: z.string(),
+});
+export type PrFacts = z.infer<typeof PrFactsSchema>;
 
 export class GitHubError extends Error {
   readonly status: number;
@@ -106,6 +118,20 @@ export function createGitHubClient(opts: { token: string; apiUrl?: string; fetch
       const issue = json.data?.repository?.issue;
       if (!issue) throw new GitHubError(404, `issue ${repo}#${issueNumber} not found or not visible to the token`);
       return IssueCloseInfoSchema.parse(issue);
+    },
+
+    async prFacts(repo, prNumber) {
+      const res = await doFetch(`${apiUrl}/graphql`, {
+        method: "POST",
+        headers: { ...headers, "content-type": "application/json" },
+        body: prQueryBody(repo, prNumber),
+      });
+      if (!res.ok) await fail(res, `PR query for ${repo}#${prNumber}`);
+      const json = (await res.json()) as { data?: { repository?: { pullRequest?: unknown } | null }; errors?: { message: string }[] };
+      if (json.errors?.length) throw new GitHubError(200, `GitHub GraphQL: ${json.errors.map((e) => e.message).join("; ")}`);
+      const pr = json.data?.repository?.pullRequest;
+      if (!pr) throw new GitHubError(404, `PR ${repo}#${prNumber} not found or not visible to the token`);
+      return PrFactsSchema.parse(pr);
     },
 
     async pullDiff(repo, prNumber) {

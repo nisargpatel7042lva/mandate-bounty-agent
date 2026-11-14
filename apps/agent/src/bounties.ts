@@ -1,7 +1,7 @@
-import { BountySchema, type BountyDto, type ClaimDto, type CreateBountyRequest } from "@mba/shared";
+import { BountySchema, type BountyDto, type ClaimDto, type CreateBountyRequest, type WorkProofDto } from "@mba/shared";
 import { desc, eq } from "drizzle-orm";
 import type { Db } from "./db/client.ts";
-import { bounties, claims } from "./db/schema.ts";
+import { bounties, claims, workProofs } from "./db/schema.ts";
 import { applyVaultEvents, type VaultEvent } from "./chain/events.ts";
 
 /** What the bounty service needs from the chain; faked in unit tests. */
@@ -41,11 +41,29 @@ export function claimToDto(c: ClaimRow): ClaimDto {
   };
 }
 
-export function toDto(r: Row, claim?: ClaimRow | null): BountyDto {
+type ProofRow = typeof workProofs.$inferSelect;
+
+export function workProofToDto(p: ProofRow): WorkProofDto {
+  return {
+    state: p.verifiedAt ? "verified" : p.failureCode ? "failed" : "pending",
+    claim: p.claim ?? null,
+    identifier: p.identifier,
+    signers: p.signers ?? [],
+    attestedAt: p.attestedAt,
+    verifiedAt: p.verifiedAt,
+    failureCode: p.failureCode,
+    error: p.error,
+    attempts: p.attempts,
+    zkVerify: null,
+  };
+}
+
+export function toDto(r: Row, claim?: ClaimRow | null, proof?: ProofRow | null): BountyDto {
   return {
     status: r.status,
     statusReason: r.statusReason,
     claim: claim ? claimToDto(claim) : null,
+    workProof: proof ? workProofToDto(proof) : null,
     id: r.id,
     chainId: r.chainId,
     vault: r.vault,
@@ -63,19 +81,24 @@ export function toDto(r: Row, claim?: ClaimRow | null): BountyDto {
   };
 }
 
+const withJoins = (db: Db) =>
+  db.select().from(bounties).leftJoin(claims, eq(claims.bountyId, bounties.id)).leftJoin(workProofs, eq(workProofs.bountyId, bounties.id));
+
 export function listBounties(db: Db): BountyDto[] {
-  return db
-    .select()
-    .from(bounties)
-    .leftJoin(claims, eq(claims.bountyId, bounties.id))
+  return withJoins(db)
     .orderBy(desc(bounties.id))
     .all()
-    .map((r) => toDto(r.bounties, r.claims));
+    .map((r) => toDto(r.bounties, r.claims, r.work_proofs));
 }
 
 export function getBounty(db: Db, id: number): BountyDto | null {
-  const row = db.select().from(bounties).leftJoin(claims, eq(claims.bountyId, bounties.id)).where(eq(bounties.id, id)).get();
-  return row ? toDto(row.bounties, row.claims) : null;
+  const row = withJoins(db).where(eq(bounties.id, id)).get();
+  return row ? toDto(row.bounties, row.claims, row.work_proofs) : null;
+}
+
+/** The raw Reclaim proof, for independent re-verification. */
+export function getRawWorkProof(db: Db, id: number) {
+  return db.select({ proof: workProofs.proof }).from(workProofs).where(eq(workProofs.bountyId, id)).get()?.proof ?? null;
 }
 
 /**

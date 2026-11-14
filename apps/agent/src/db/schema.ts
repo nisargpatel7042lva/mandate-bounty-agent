@@ -28,7 +28,22 @@ export const bounties = sqliteTable("bounties", {
   updatedAt: integer("updated_at").notNull(),
 });
 
-export type BountyStatus = "open" | "claimed" | "reviewed" | "review_failed";
+export type BountyStatus = import("@mba/shared").BountyStatus;
+
+/** The zkTLS proof that GitHub reported the claimed PR as merged, and its local verification. */
+export const workProofs = sqliteTable("work_proofs", {
+  bountyId: integer("bounty_id").primaryKey(),
+  /** Raw Reclaim proof, kept so anyone can re-verify it. */
+  proof: text("proof", { mode: "json" }).$type<import("@mba/zktls").ZkTlsProof>(),
+  claim: text("claim", { mode: "json" }).$type<import("@mba/zktls").MergedPrClaim>(),
+  identifier: text("identifier"),
+  signers: text("signers", { mode: "json" }).$type<string[]>(),
+  attestedAt: integer("attested_at"),
+  verifiedAt: integer("verified_at"),
+  failureCode: text("failure_code"),
+  error: text("error"),
+  attempts: integer("attempts").notNull().default(0),
+});
 
 /**
  * A merged PR that GitHub records as closing the bounty's issue, plus the advisory LLM review
@@ -118,6 +133,18 @@ CREATE TABLE IF NOT EXISTS claims (
   reviewed_at INTEGER,
   review_error TEXT,
   review_attempts INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS work_proofs (
+  bounty_id INTEGER PRIMARY KEY,
+  proof TEXT,
+  claim TEXT,
+  identifier TEXT,
+  signers TEXT,
+  attested_at INTEGER,
+  verified_at INTEGER,
+  failure_code TEXT,
+  error TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS fundings (
   tx_hash TEXT NOT NULL,

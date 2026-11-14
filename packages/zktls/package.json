@@ -3,9 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./testing/local-attestor.ts"
+  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@reclaimprotocol/js-sdk": "5.8.3",
+    "@reclaimprotocol/zk-fetch": "1.1.0",
+    "viem": "2.57.13"
   }
 }

@@ -5,7 +5,7 @@ and **prove** the payout stayed inside the funder's mandate.
 
 > The LLM proposes, the proofs dispose.
 
-Status: Phase 2, detecting merged PRs and writing an advisory review. Research notes are in [docs/phase-0-findings.md](docs/phase-0-findings.md).
+Status: Phase 3, zkTLS proof of the merged PR. Research notes are in [docs/phase-0-findings.md](docs/phase-0-findings.md).
 
 ## What works
 
@@ -20,8 +20,15 @@ then reviews the diff against the funder's acceptance criteria and returns a sch
 approve, reject or needs_human, with evidence for each criterion. The verdict is advice only:
 nothing it says can move or block funds. Status: `open → claimed → reviewed` (or `review_failed`).
 
+Next the agent proves the merge over zkTLS (Reclaim zkFetch). It asks GitHub's GraphQL API for the
+PR's number, merged flag, merge time, base branch, author and repository. A Reclaim attestor signs
+the answer, bound to this bounty, and the GitHub token stays private. The agent verifies the proof
+offline against Reclaim's published attestors, checking the signature, the request, the bounty
+binding and every field. Status then becomes `work_proven` (or `work_proof_failed` with a reason
+code). The raw proof is served at `GET /bounties/:id/proof` for anyone to re-verify.
+
 Watcher settings (root `.env`): `GITHUB_TOKEN`, or `GITHUB_TOKEN_COMMAND=gh auth token` for local
-dev; `ANTHROPIC_API_KEY` for reviews (without it, claims wait for review); `GITHUB_POLL_INTERVAL_MS`.
+dev; `GEMINI_API_KEY` or `ANTHROPIC_API_KEY` for reviews (without one, claims wait for review); `RECLAIM_APP_ID` + `RECLAIM_APP_SECRET` for work proofs (without them, reviewed bounties wait); `GITHUB_POLL_INTERVAL_MS`.
 `POST /bounties/:id/check` runs a check immediately.
 
 ## Layout

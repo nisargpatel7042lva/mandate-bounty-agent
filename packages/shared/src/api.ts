@@ -16,9 +16,40 @@ export type CreateBountyRequest = z.infer<typeof CreateBountyRequestSchema>;
 
 /**
  * Workflow status. `reviewed` only means the advisory review finished; it never authorizes payment.
- * Later phases extend this (work_proven, mandate_proven, paid).
+ * `work_proven` means a zkTLS proof that GitHub reported the PR as merged verified locally.
+ * Later phases extend this (mandate_proven, paid).
  */
-export type BountyStatus = "open" | "claimed" | "reviewed" | "review_failed";
+export type BountyStatus = "open" | "claimed" | "reviewed" | "review_failed" | "work_proven" | "work_proof_failed";
+
+/** Facts attested by the zkTLS proof (as GitHub's API returned them). */
+export interface WorkProofClaimDto {
+  repo: string;
+  prNumber: number;
+  merged: boolean;
+  mergedAt: string | null;
+  baseRef: string;
+  author: string;
+  /** Wallet named by the author in the PR description (mba-payee line), lowercased. */
+  payee: string;
+  /** Who last edited the description; null if never edited. */
+  lastEditor: string | null;
+}
+
+export interface WorkProofDto {
+  state: "verified" | "failed" | "pending";
+  claim: WorkProofClaimDto | null;
+  /** Reclaim claim identifier (keccak256 of the claim). Stable reference to this proof. */
+  identifier: string | null;
+  /** Attestor addresses whose signatures verified. */
+  signers: string[];
+  attestedAt: number | null;
+  verifiedAt: number | null;
+  failureCode: string | null;
+  error: string | null;
+  attempts: number;
+  /** Not on zkVerify yet: Phase 4 binds this claim into the mandate proof that goes there. */
+  zkVerify: null;
+}
 
 /** A merged PR that GitHub records as closing the bounty's issue, with its advisory review. */
 export interface ClaimDto {
@@ -48,6 +79,7 @@ export interface BountyDto {
   status: BountyStatus;
   statusReason: string | null;
   claim: ClaimDto | null;
+  workProof: WorkProofDto | null;
   id: number;
   chainId: number;
   vault: string;
