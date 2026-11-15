@@ -8,7 +8,7 @@ import { agentApi } from "../lib/api.ts";
 import { parseBountyForm, type BountyFormValues, type FieldErrors } from "../lib/bounty-form.ts";
 import { txUrl, type WebConfig } from "../lib/config.ts";
 import { formatUsdc, shortAddress } from "../lib/format.ts";
-import { clients, connectWallet, discoverWallets, ensureSelectedChain, lastWalletRdns, walletErrorMessage, type WalletOption } from "../lib/wallet.ts";
+import { addTokenToWallet, clients, connectWallet, discoverWallets, ensureSelectedChain, lastWalletRdns, walletErrorMessage, type WalletOption } from "../lib/wallet.ts";
 
 const INITIAL: BountyFormValues = {
   repo: "",
@@ -75,6 +75,7 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
   const [account, setAccount] = useState<Address | null>(null);
   const [balance, setBalance] = useState<bigint | null>(null);
   const [ethBalance, setEthBalance] = useState<bigint | null>(null);
+  const [tokenAdded, setTokenAdded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<{ step: Step; state: "active" | "done"; tx?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +141,15 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
     const remembered = found.find((w) => w.rdns === last);
     if (found.length === 1 || remembered) return useWallet(remembered ?? (found[0] as WalletOption));
     setWallets(found); // several wallets installed: let the person pick one
+  };
+
+  const addToken = async () => {
+    setWalletError(null);
+    try {
+      if (await addTokenToWallet(config)) setTokenAdded(true);
+    } catch (e) {
+      setWalletError(walletErrorMessage(e));
+    }
   };
 
   const switchWallet = async () => {
@@ -248,6 +258,9 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
             <span style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button type="button" className="btn secondary" onClick={faucet} disabled={busy}>
                 {busy ? "Waiting for your wallet…" : "Get 10,000 test USDC"}
+              </button>
+              <button type="button" className="btn secondary sm" onClick={addToken} disabled={busy || tokenAdded}>
+                {tokenAdded ? "tUSDC added to wallet ✓" : "Add tUSDC to wallet"}
               </button>
               <button type="button" className="btn secondary sm" onClick={switchWallet} disabled={busy}>
                 Switch wallet

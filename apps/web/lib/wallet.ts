@@ -132,6 +132,21 @@ export async function ensureSelectedChain(config: WebConfig) {
   if (provider) await ensureChain(provider, config);
 }
 
+/**
+ * Asks the wallet to show the test USDC token (EIP-747 wallet_watchAsset), so the balance appears
+ * without pasting the contract address. Resolves true if the wallet added it.
+ */
+export async function addTokenToWallet(config: WebConfig): Promise<boolean> {
+  const provider = selected ?? window.ethereum;
+  if (!provider) throw new WalletError("No wallet connected.");
+  await ensureChain(provider, config);
+  const added = await provider.request({
+    method: "wallet_watchAsset",
+    params: { type: "ERC20", options: { address: config.usdc, symbol: "tUSDC", decimals: 6 } },
+  });
+  return Boolean(added);
+}
+
 export function clients(config: WebConfig, account: Address) {
   const provider = selected ?? window.ethereum;
   if (!provider) throw new WalletError("No wallet connected.");
