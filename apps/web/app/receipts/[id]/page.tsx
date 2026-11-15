@@ -2,12 +2,36 @@
 
 import type { BountyDto } from "@mba/shared";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useConfig } from "../../../components/use-config.ts";
 import { agentApi } from "../../../lib/api.ts";
 import { addressUrl, txUrl } from "../../../lib/config.ts";
 import { formatUsdc, shortAddress } from "../../../lib/format.ts";
 import { RECOMMENDATION } from "../../../lib/status.ts";
+
+const Frame = ({ children }: { children: ReactNode }) => <div className="page shell">{children}</div>;
+
+/** The rotating "verified" seal: text set on a circle around a filled core. */
+function Seal() {
+  return (
+    <div className="seal-stamp" aria-hidden>
+      <svg viewBox="0 0 200 200">
+        <defs>
+          <path id="seal-c" d="M100 100m-78 0a78 78 0 1 1 156 0a78 78 0 1 1 -156 0" />
+        </defs>
+        <circle cx="100" cy="100" r="96" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <text fill="currentColor" style={{ font: "500 15px var(--f-mono), monospace", letterSpacing: "0.18em" }}>
+          <textPath href="#seal-c" textLength="482" lengthAdjust="spacing">
+            VERIFIED · ZKTLS · GROTH16 · ZKVERIFY · PAID ·
+          </textPath>
+        </text>
+      </svg>
+      <div className="core">
+        <span>✓</span>
+      </div>
+    </div>
+  );
+}
 
 const whenS = (s: number | null) => (s ? new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC" : "-");
 
@@ -39,10 +63,10 @@ export default function ReceiptPage() {
       .catch((e: Error) => setError(e.message));
   }, [cfg, id]);
 
-  if (!cfg.ok) return <p className="notice err">Configuration error: {cfg.error}</p>;
-  if (error) return <p className="notice err">Could not load receipt #{id}: {error}</p>;
-  if (!b) return <p className="lede">Loading…</p>;
-  if (b.status !== "paid" || !b.payout?.txHash) return <p className="notice warn">Bounty #{id} has not been paid, so there is no receipt yet.</p>;
+  if (!cfg.ok) return <Frame><p className="notice err">Configuration error: {cfg.error}</p></Frame>;
+  if (error) return <Frame><p className="notice err">Could not load receipt #{id}: {error}</p></Frame>;
+  if (!b) return <Frame><p className="lede">Loading…</p></Frame>;
+  if (b.status !== "paid" || !b.payout?.txHash) return <Frame><p className="notice warn">Bounty #{id} has not been paid, so there is no receipt yet.</p></Frame>;
 
   const { config } = cfg;
   const c = b.claim;
@@ -52,13 +76,28 @@ export default function ReceiptPage() {
   const rawProof = `${config.agentUrl.replace(/\/$/, "")}/bounties/${b.id}/proof`;
 
   return (
-    <article data-testid="receipt">
-      <h1>Payout receipt · bounty #{b.id}</h1>
-      <p className="lede">
-        {b.title ?? `${b.repo}#${b.issueNumber}`} · paid {formatUsdc(b.payout.amount)} on {whenS(b.payout.paidAt)}
-      </p>
+    <div className="page shell">
+    <article className="receipt" data-testid="receipt">
+      <header className="r-head">
+        <span className="label seal">Payout receipt · bounty #{b.id}</span>
+        <h1>
+          Paid, <span className="it">and proven.</span>
+        </h1>
+        <p className="r-total">
+          <b>{formatUsdc(b.payout.amount)}</b>
+          <span>
+            {b.title ?? `${b.repo}#${b.issueNumber}`} · {whenS(b.payout.paidAt)}
+          </span>
+        </p>
+        <Seal />
+      </header>
 
-      <h2>1. Payment</h2>
+      <section className="r-sec">
+        <header>
+          <span className="num">01</span>
+          <h2>Payment</h2>
+          <p>Sent by the vault after it checked both proofs on-chain.</p>
+        </header>
       <div className="card">
         <dl className="kv">
           <dt>Amount</dt>
@@ -79,8 +118,14 @@ export default function ReceiptPage() {
           </dd>
         </dl>
       </div>
+      </section>
 
-      <h2>2. Delivered work</h2>
+      <section className="r-sec">
+        <header>
+          <span className="num">02</span>
+          <h2>Delivered work</h2>
+          <p>The merged pull request that closed the issue.</p>
+        </header>
       <div className="card">
         <dl className="kv">
           <dt>Pull request</dt>
@@ -95,8 +140,14 @@ export default function ReceiptPage() {
           <dd>{c ? `${c.mergedAt.slice(0, 16).replace("T", " ")} UTC into ${c.baseRef}` : "-"}</dd>
         </dl>
       </div>
+      </section>
 
-      <h2>3. Advisory review (LLM)</h2>
+      <section className="r-sec">
+        <header>
+          <span className="num">03</span>
+          <h2>Advisory review</h2>
+          <p>The model's opinion. Recorded, never obeyed.</p>
+        </header>
       <div className="card" data-testid="r-verdict">
         {v ? (
           <>
@@ -116,8 +167,14 @@ export default function ReceiptPage() {
           Advice only. It cannot release or block a payout; the two proofs below decide.
         </p>
       </div>
+      </section>
 
-      <h2>4. zkTLS proof of the merge</h2>
+      <section className="r-sec">
+        <header>
+          <span className="num">04</span>
+          <h2>zkTLS proof</h2>
+          <p>What GitHub's API said, signed by a Reclaim attestor.</p>
+        </header>
       <div className="card">
         <dl className="kv">
           <dt>Claim</dt>
@@ -139,8 +196,14 @@ export default function ReceiptPage() {
           </dd>
         </dl>
       </div>
+      </section>
 
-      <h2>5. Mandate proof on zkVerify</h2>
+      <section className="r-sec">
+        <header>
+          <span className="num">05</span>
+          <h2>Mandate proof</h2>
+          <p>The payout fits the mandate, verified on zkVerify.</p>
+        </header>
       <div className="card">
         <dl className="kv">
           <dt>Mandate</dt>
@@ -172,6 +235,8 @@ export default function ReceiptPage() {
           </dd>
         </dl>
       </div>
+      </section>
     </article>
+    </div>
   );
 }
