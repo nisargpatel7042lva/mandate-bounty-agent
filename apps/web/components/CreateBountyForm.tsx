@@ -3,12 +3,12 @@
 import { bountyVaultAbi, mockUSDCAbi } from "@mba/contracts";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import type { Address } from "viem";
+import { formatEther, type Address } from "viem";
 import { agentApi } from "../lib/api.ts";
 import { parseBountyForm, type BountyFormValues, type FieldErrors } from "../lib/bounty-form.ts";
 import { txUrl, type WebConfig } from "../lib/config.ts";
 import { formatUsdc, shortAddress } from "../lib/format.ts";
-import { clients, connectWallet, discoverWallets, lastWalletRdns, walletErrorMessage, type WalletOption } from "../lib/wallet.ts";
+import { clients, connectWallet, discoverWallets, ensureSelectedChain, lastWalletRdns, walletErrorMessage, type WalletOption } from "../lib/wallet.ts";
 
 const INITIAL: BountyFormValues = {
   repo: "",
@@ -74,6 +74,7 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [account, setAccount] = useState<Address | null>(null);
   const [balance, setBalance] = useState<bigint | null>(null);
+  const [ethBalance, setEthBalance] = useState<bigint | null>(null);
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<{ step: Step; state: "active" | "done"; tx?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +84,12 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
   const refreshBalance = useCallback(
     async (who: Address) => {
       const { reader } = clients(config, who);
-      setBalance(await reader.readContract({ address: config.usdc, abi: mockUSDCAbi, functionName: "balanceOf", args: [who] }));
+      const [usdc, eth] = await Promise.all([
+        reader.readContract({ address: config.usdc, abi: mockUSDCAbi, functionName: "balanceOf", args: [who] }),
+        reader.getBalance({ address: who }),
+      ]);
+      setBalance(usdc);
+      setEthBalance(eth);
     },
     [config],
   );
@@ -143,14 +149,23 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
     setWallets(await discoverWallets());
   };
 
-  const faucet = () =>
-    run(async () => {
-      if (!account) return;
+  // Errors show in the wallet card, where the button is.
+  const faucet = async () => {
+    if (!account) return;
+    setWalletError(null);
+    setBusy(true);
+    try {
+      await ensureSelectedChain(config);
       const { wallet, reader } = clients(config, account);
       const hash = await wallet.writeContract({ address: config.usdc, abi: mockUSDCAbi, functionName: "faucet", args: [FAUCET_AMOUNT] });
       await reader.waitForTransactionReceipt({ hash });
       await refreshBalance(account);
-    });
+    } catch (e) {
+      setWalletError(walletErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const mark = (step: Step, state: "active" | "done", tx?: string) =>
     setSteps((s) => [...s.filter((x) => x.step !== step), { step, state, ...(tx ? { tx } : {}) }]);
@@ -165,6 +180,7 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
     setErrors({});
     void run(async () => {
       if (!account) throw new Error("Connect a wallet first.");
+      await ensureSelectedChain(config);
       const { bounty, fundAmount, title, acceptanceCriteria } = parsed.value;
       const { wallet, reader } = clients(config, account);
 
@@ -227,10 +243,11 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
             <span>
               Connected as <span className="mono" data-testid="account">{shortAddress(account)}</span>
               {balance !== null && <> · balance <strong data-testid="balance">{formatUsdc(balance)}</strong></>}
+              {ethBalance !== null && <span className="row-meta"> · {Number(formatEther(ethBalance)).toFixed(4)} Sepolia ETH for gas</span>}
             </span>
             <span style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button type="button" className="btn secondary" onClick={faucet} disabled={busy}>
-                Get 10,000 test USDC
+                {busy ? "Waiting for your wallet…" : "Get 10,000 test USDC"}
               </button>
               <button type="button" className="btn secondary sm" onClick={switchWallet} disabled={busy}>
                 Switch wallet
@@ -254,6 +271,13 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
           <button type="button" className="btn" onClick={connect} disabled={busy}>
             {busy ? "Waiting for your wallet…" : "Connect wallet"}
           </button>
+        )}
+        {account && ethBalance === 0n && (
+          <p className="notice warn" style={{ margin: "14px 0 0" }} data-testid="no-gas">
+            This wallet has no Sepolia ETH, and every transaction (even the free test USDC) needs a little for gas. Get some free from{" "}
+            <a href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noreferrer">Google&apos;s Sepolia faucet</a> or{" "}
+            <a href="https://www.alchemy.com/faucets/ethereum-sepolia" target="_blank" rel="noreferrer">Alchemy&apos;s</a>, then click the button again.
+          </p>
         )}
         {walletError && (
           <p className="notice err" role="alert" style={{ margin: "14px 0 0" }}>

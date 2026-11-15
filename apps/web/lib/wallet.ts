@@ -68,6 +68,10 @@ export function walletErrorMessage(e: unknown): string {
   if (code === 4001) return "You rejected the request in your wallet. Click Connect wallet to try again.";
   if (code === -32002) return "Your wallet already has a request waiting. Open the wallet extension and approve or reject it.";
   if (code === 4100) return "Your wallet hasn't authorised this site. Unlock the wallet and try again.";
+  const text = `${err.shortMessage ?? ""} ${err.message ?? ""}`;
+  if (/insufficient funds|exceeds the balance|gas required exceeds/i.test(text))
+    return "Your wallet has no Sepolia ETH to pay gas. Get a little from a Sepolia faucet, then try again.";
+  if (/does not match the target chain|chain mismatch/i.test(text)) return "Your wallet is on a different network. Switch it to Sepolia and try again.";
   return err.shortMessage ?? err.message ?? String(e);
 }
 
@@ -120,6 +124,12 @@ export async function connectPreferred(config: WebConfig): Promise<Address> {
   const pick = found.find((w) => w.rdns === last) ?? found[0];
   if (!pick) throw new WalletError("No browser wallet found. Install MetaMask (or another wallet extension), then reload this page.");
   return connectWallet(config, pick);
+}
+
+/** Before every transaction: the wallet may have been moved to another network since connecting. */
+export async function ensureSelectedChain(config: WebConfig) {
+  const provider = selected ?? window.ethereum;
+  if (provider) await ensureChain(provider, config);
 }
 
 export function clients(config: WebConfig, account: Address) {
