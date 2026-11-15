@@ -536,3 +536,16 @@ legend {
 .nb-head p { margin: 0; color: var(--ink-2); max-width: 46ch; justify-self: end; }
 @media (max-width: 860px) { .nb-head { grid-template-columns: 1fr; } .nb-head p { justify-self: start; } }
 .nb-form { max-width: none; }
+
+/* wallet picker */
+.wallets { display: grid; gap: 12px; }
+.wallet-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.wallet-opt {
+  display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px 0 12px;
+  border-radius: 14px; border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink);
+  font: 500 14px/1 var(--sans); cursor: pointer; transition: border-color .3s, background .3s, transform .4s var(--ease);
+}
+.wallet-opt:hover { border-color: var(--seal); background: var(--seal-soft); transform: translateY(-1px); }
+.wallet-opt img { width: 24px; height: 24px; border-radius: 6px; }
+.wallet-opt .label { color: var(--seal); font-size: 9.5px; }
+.wallet-dot { width: 24px; height: 24px; border-radius: 6px; background: var(--line-2); }

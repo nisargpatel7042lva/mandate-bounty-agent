@@ -1,7 +1,7 @@
 # Creator Track: X thread
 
 Post as a thread on X. Each block between `---` lines is one post; all are under 280 characters (links
-count as 23). Attach the suggested image to the posts that have one. The first post carries the tag
+count as 23). Attach the image named under a post; the files are in [thread-images/](thread-images/), 1600×900 at 2× (16:9, sharp on X). Regenerate them with `node scripts/thread-shots.mjs` from apps/web. The first post carries the tag
 and hashtag the track requires (#AgentGames, @ZKVProtocol); the last repeats the hashtag.
 
 ---
@@ -14,7 +14,7 @@ The LLM proposes, the proofs dispose. 🧵
 
 #AgentGames @ZKVProtocol
 
-[image: the receipt page, top half]
+[image: thread-images/01-hero.png — the hero: the particle ring and "The LLM proposes. The proofs dispose."]
 
 ---
 
@@ -44,6 +44,8 @@ When a merged PR closes the issue, the agent does three things.
 
 2 and 3 are the proofs. 👇
 
+[image: thread-images/02-proof-rail.png — a bounty's six-stage rail, from Funded to Paid]
+
 ---
 
 Proof 1: zkTLS (Reclaim).
@@ -60,7 +62,7 @@ It proves the payout fits the committed mandate: under the cap, within the remai
 
 All without revealing the allowlist or the limits beyond their hash.
 
-[image: circuit public inputs from the receipt]
+[image: thread-images/04-mandate-proof.png — the zkTLS claim and the mandate proof with its zkVerify aggregation and public inputs]
 
 ---
 
@@ -78,6 +80,8 @@ Before paying, the vault rebuilds the statement leaf itself and calls zkVerify's
 
 It also refuses replays: same bounty, PR, claim or proof → revert.
 
+[image: thread-images/05-payment.png — the payment the vault released after checking both proofs]
+
 ---
 
 Fun bug from the live run: Kurier's status sat at "Aggregated" for over an hour, but the root was already on Sepolia.
@@ -93,7 +97,7 @@ Funded → PR detected → reviewed → zkTLS proven → mandate proven on zkVer
 The receipt shows every proof:
 https://mandate-bounty-agent.vercel.app/receipts/1
 
-[image: Etherscan PayoutReleased event]
+[image: thread-images/03-receipt.png — the public receipt: "Paid, and proven." with the verified seal]
 
 ---
 

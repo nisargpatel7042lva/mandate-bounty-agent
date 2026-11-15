@@ -7,7 +7,7 @@ import { useState } from "react";
 import { txUrl, type WebConfig } from "../lib/config.ts";
 import { formatUsdc, shortAddress } from "../lib/format.ts";
 import { MANDATE_REASON } from "../lib/status.ts";
-import { clients, connectWallet } from "../lib/wallet.ts";
+import { clients, connectPreferred, walletErrorMessage } from "../lib/wallet.ts";
 
 const whenS = (s: number) => new Date(s * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC";
 
@@ -22,14 +22,13 @@ export function MandatePayoutPanel({ bounty, config, onChange }: { bounty: Bount
     setBusy(true);
     setError(null);
     try {
-      const account = await connectWallet(config);
+      const account = await connectPreferred(config);
       const { wallet, reader } = clients(config, account);
       const hash = await wallet.writeContract({ address: bounty.vault as `0x${string}`, abi: bountyVaultAbi, functionName: "approveDespiteReview", args: [BigInt(bounty.id)] });
       await reader.waitForTransactionReceipt({ hash });
       onChange();
     } catch (e) {
-      const err = e as { shortMessage?: string; message?: string };
-      setError(err.shortMessage ?? err.message ?? String(e));
+      setError(walletErrorMessage(e));
     } finally {
       setBusy(false);
     }

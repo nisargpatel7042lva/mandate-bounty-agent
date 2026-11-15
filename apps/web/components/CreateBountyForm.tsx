@@ -8,7 +8,7 @@ import { agentApi } from "../lib/api.ts";
 import { parseBountyForm, type BountyFormValues, type FieldErrors } from "../lib/bounty-form.ts";
 import { txUrl, type WebConfig } from "../lib/config.ts";
 import { formatUsdc, shortAddress } from "../lib/format.ts";
-import { clients, connectWallet } from "../lib/wallet.ts";
+import { clients, connectWallet, discoverWallets, lastWalletRdns, walletErrorMessage, type WalletOption } from "../lib/wallet.ts";
 
 const INITIAL: BountyFormValues = {
   repo: "",
@@ -77,6 +77,8 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<{ step: Step; state: "active" | "done"; tx?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [wallets, setWallets] = useState<WalletOption[] | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
 
   const refreshBalance = useCallback(
     async (who: Address) => {
@@ -99,19 +101,47 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
     try {
       await fn();
     } catch (e) {
-      const err = e as { shortMessage?: string; message?: string };
-      setError(err.shortMessage ?? err.message ?? String(e));
+      setError(walletErrorMessage(e));
     } finally {
       setBusy(false);
     }
   };
 
-  const connect = () =>
-    run(async () => {
-      const who = await connectWallet(config);
+  // Errors here show inside the wallet card, next to the button, not at the bottom of the form.
+  const useWallet = async (w: WalletOption) => {
+    setWalletError(null);
+    setBusy(true);
+    try {
+      const who = await connectWallet(config, w);
       setAccount(who);
+      setWallets(null);
       setValues((v) => (v.payees ? v : { ...v, payees: "" }));
-    });
+    } catch (e) {
+      setWalletError(walletErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const connect = async () => {
+    setWalletError(null);
+    const found = await discoverWallets();
+    if (found.length === 0) {
+      setWalletError("No browser wallet found. Install MetaMask (or another wallet extension), then reload this page.");
+      return;
+    }
+    const last = lastWalletRdns();
+    const remembered = found.find((w) => w.rdns === last);
+    if (found.length === 1 || remembered) return useWallet(remembered ?? (found[0] as WalletOption));
+    setWallets(found); // several wallets installed: let the person pick one
+  };
+
+  const switchWallet = async () => {
+    setAccount(null);
+    setBalance(null);
+    setWalletError(null);
+    setWallets(await discoverWallets());
+  };
 
   const faucet = () =>
     run(async () => {
@@ -198,14 +228,37 @@ export function CreateBountyForm({ config }: { config: WebConfig }) {
               Connected as <span className="mono" data-testid="account">{shortAddress(account)}</span>
               {balance !== null && <> · balance <strong data-testid="balance">{formatUsdc(balance)}</strong></>}
             </span>
-            <button type="button" className="btn secondary" onClick={faucet} disabled={busy}>
-              Get 10,000 test USDC
-            </button>
+            <span style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" className="btn secondary" onClick={faucet} disabled={busy}>
+                Get 10,000 test USDC
+              </button>
+              <button type="button" className="btn secondary sm" onClick={switchWallet} disabled={busy}>
+                Switch wallet
+              </button>
+            </span>
+          </div>
+        ) : wallets && wallets.length > 1 ? (
+          <div className="wallets">
+            <span className="label">Choose a wallet</span>
+            <div className="wallet-list" role="group" aria-label="Wallets">
+              {wallets.map((w) => (
+                <button key={w.id} type="button" className="wallet-opt" onClick={() => useWallet(w)} disabled={busy}>
+                  {w.icon ? <img src={w.icon} alt="" width={24} height={24} /> : <span className="wallet-dot" aria-hidden />}
+                  {w.name}
+                  {w.rdns === "io.metamask" && <span className="label">recommended</span>}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <button type="button" className="btn" onClick={connect} disabled={busy}>
-            Connect wallet
+            {busy ? "Waiting for your wallet…" : "Connect wallet"}
           </button>
+        )}
+        {walletError && (
+          <p className="notice err" role="alert" style={{ margin: "14px 0 0" }}>
+            {walletError}
+          </p>
         )}
       </div>
 
