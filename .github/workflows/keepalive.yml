@@ -1,0 +1,13 @@
+# Keeps the free Render instance awake (it sleeps after 15 min without traffic), so the watcher
+# keeps polling GitHub and zkVerify. Free on a public repo.
+name: keepalive
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: curl -fsS --retry 5 --retry-delay 20 --max-time 120 https://mandate-bounty-agent.onrender.com/health
