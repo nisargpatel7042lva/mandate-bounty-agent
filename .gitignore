@@ -23,3 +23,6 @@ apps/agent/data/
 *.recovery.lock
 # The agent seed database is a scanned, secret-free snapshot shipped in the image (render.yaml).
 !apps/agent/seed/mandate-bounty.sqlite
+
+# rendered demo video (large binary; upload it, don't commit it)
+/demo/

@@ -2,7 +2,9 @@
 // with the running agent. Usage:
 //   node --env-file=../../.env --experimental-strip-types scripts/testnet-bounty.ts [owner/repo] [issue]
 // Optional: BOUNTY_TITLE and BOUNTY_CRITERIA set the title and acceptance criteria sent to the agent;
-// BOUNTY_PAYEES (comma-separated) sets the allowlist (default: the deployer).
+// BOUNTY_PAYEES (comma-separated) sets the allowlist (default: the deployer). Amounts in whole tUSDC:
+// BOUNTY_PAYOUT (250), BOUNTY_FUND (400), BOUNTY_CAP (500), BOUNTY_BUDGET (1000), BOUNTY_DAYS (30).
+// AGENT_URL is the agent to register with (default: localhost).
 import { readFileSync } from "node:fs";
 import { mandateCommitmentHex } from "@mba/circuits";
 import { bountyVaultAbi, mockUSDCAbi } from "@mba/contracts";
@@ -30,12 +32,16 @@ async function send(label: string, hash: Hex) {
   return hash;
 }
 
-const fund = 400_000_000n; // 400 tUSDC
+const usdc = (name: string, fallback: number) => BigInt(Math.round(Number(process.env[name] ?? fallback) * 1_000_000));
+const payout = usdc("BOUNTY_PAYOUT", 250);
+const fund = usdc("BOUNTY_FUND", 400);
 // The mandate and the Poseidon commitment the mandate proof will be checked against.
-const mandate = { perPayoutCap: 500_000_000n, totalBudget: 1_000_000_000n, expiry: BigInt(Math.floor(Date.now() / 1000) + 30 * 86_400) };
+const days = Number(process.env.BOUNTY_DAYS ?? 30);
+const mandate = { perPayoutCap: usdc("BOUNTY_CAP", 500), totalBudget: usdc("BOUNTY_BUDGET", 1000), expiry: BigInt(Math.floor(Date.now() / 1000) + days * 86_400) };
+if (payout > mandate.perPayoutCap || fund > mandate.totalBudget || fund < payout) throw new Error("need payout <= cap, payout <= fund <= budget");
 const payees = (process.env.BOUNTY_PAYEES ?? account.address).split(",").map((a) => a.trim() as Address);
 const commitment = await mandateCommitmentHex({ ...mandate, allowedPayees: payees });
-await send("faucet", await wallet.writeContract({ address: deployment.mockUsdc, abi: mockUSDCAbi, functionName: "faucet", args: [1_000_000_000n] }));
+await send("faucet", await wallet.writeContract({ address: deployment.mockUsdc, abi: mockUSDCAbi, functionName: "faucet", args: [fund] }));
 await send("approve", await wallet.writeContract({ address: deployment.mockUsdc, abi: mockUSDCAbi, functionName: "approve", args: [deployment.bountyVault, fund] }));
 const createTx = await send(
   "createAndFund",
@@ -46,7 +52,7 @@ const createTx = await send(
     args: [
       repo,
       BigInt(issue),
-      250_000_000n,
+      payout,
       { ...mandate, commitment },
       payees,
       fund,
