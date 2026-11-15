@@ -37,7 +37,7 @@ is awake.
 
 > "A funder creates a bounty for a GitHub issue and locks the money in a vault on Ethereum Sepolia.
 > They also set a mandate: the most one payout can be, the total budget, which wallets may be paid,
-> and an expiry. Only a hash of that mandate goes on-chain."
+> and an expiry. The vault also stores a commitment to that mandate, which every payout proof must match."
 
 ## 1:10 – 1:40 · What the agent did
 **Screen:** tab 2, the bounty page. Scroll slowly through the claim, review and proof panels.

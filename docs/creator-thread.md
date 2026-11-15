@@ -34,7 +34,7 @@ A funder locks USDC in a vault for a GitHub issue, plus a mandate:
 • allowed payee wallets
 • expiry
 
-Only a Poseidon hash of the mandate goes on-chain. The agent can recommend anything. The vault decides.
+The vault stores it, plus a Poseidon commitment every payout proof must match. The agent can recommend anything. The vault decides.
 
 ---
 
@@ -60,7 +60,7 @@ Proof 2: a Groth16 circuit (Circom).
 
 It proves the payout fits the committed mandate: under the cap, within the remaining budget, payee on the allowlist, not expired.
 
-All without revealing the allowlist or the limits beyond their hash.
+It's checked against the on-chain commitment, so the agent can't swap in a looser mandate.
 
 [image: thread-images/04-mandate-proof.png — the zkTLS claim and the mandate proof with its zkVerify aggregation and public inputs]
 

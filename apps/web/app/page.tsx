@@ -21,7 +21,7 @@ const STEPS: Step[] = [
         Lock the budget, <span className="it">and the rules.</span>
       </>
     ),
-    body: "A funder puts test USDC in the vault for one GitHub issue, with a mandate: the most a single payout can be, a total budget, the wallets allowed to be paid, and an expiry. Only a Poseidon hash of the mandate goes on-chain.",
+    body: "A funder puts test USDC in the vault for one GitHub issue, with a mandate: the most a single payout can be, a total budget, the wallets allowed to be paid, and an expiry. The vault also stores a Poseidon commitment to the mandate, which every payout proof must match.",
     tags: ["BountyVault", "Poseidon commitment"],
   },
   {
