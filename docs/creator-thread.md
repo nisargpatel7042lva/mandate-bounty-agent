@@ -1,7 +1,7 @@
 # Creator Track: X thread
 
 Post as a thread on X. Each block between `---` lines is one post; all are under 280 characters (links
-count as 23). Attach the image named under a post; the files are in [thread-images/](thread-images/), 1600×900 at 2× (16:9, sharp on X). Regenerate them with `node scripts/thread-shots.mjs` from apps/web. The first post carries the tag
+count as 23; bullets, arrows and emoji count 2). Every post carries #AgentGames. Attach the image named under a post; the files are in [thread-images/](thread-images/), 1600×900 at 2× (16:9, sharp on X). Regenerate them with `node scripts/thread-shots.mjs` from apps/web. The first post carries the tag
 and hashtag the track requires (#AgentGames, @ZKVProtocol); the last repeats the hashtag.
 
 ---
@@ -24,17 +24,19 @@ Hand that job to an LLM and it gets worse. The model reviews a PR, and the PR ca
 
 So the agent can never hold the money.
 
+#AgentGames
+
 ---
 
-The setup:
-
-A funder locks USDC in a vault for a GitHub issue, plus a mandate:
+The setup: a funder locks USDC in a vault for a GitHub issue, plus a mandate:
 • max per payout
 • total budget
-• allowed payee wallets
+• allowed payees
 • expiry
 
-The vault stores it, plus a Poseidon commitment every payout proof must match. The agent can recommend anything. The vault decides.
+The vault stores it, plus a Poseidon commitment every payout proof must match. The agent recommends. The vault decides.
+
+#AgentGames
 
 ---
 
@@ -44,15 +46,19 @@ When a merged PR closes the issue, the agent does three things.
 
 2 and 3 are the proofs. 👇
 
+#AgentGames
+
 [image: thread-images/02-proof-rail.png — a bounty's six-stage rail, from Funded to Paid]
 
 ---
 
 Proof 1: zkTLS (Reclaim).
 
-It proves what GitHub's API actually returned: PR #3 is merged, into main, by this author, with this payee wallet in the description.
+It proves what GitHub's API returned: PR #3 is merged, into main, by this author, with this payee wallet in the description.
 
 My GitHub token stays private. The proof is bound to this chain, vault and bounty, so it can't be reused.
+
+#AgentGames
 
 ---
 
@@ -61,6 +67,8 @@ Proof 2: a Groth16 circuit (Circom).
 It proves the payout fits the committed mandate: under the cap, within the remaining budget, payee on the allowlist, not expired.
 
 It's checked against the on-chain commitment, so the agent can't swap in a looser mandate.
+
+#AgentGames
 
 [image: thread-images/04-mandate-proof.png — the zkTLS claim and the mandate proof with its zkVerify aggregation and public inputs]
 
@@ -72,6 +80,8 @@ zkVerify has no zkTLS verifier. So I put the zkTLS claim ID into the Groth16 pro
 
 One proof on zkVerify now covers both claims: "this payout fits the mandate AND pays for exactly this proven PR."
 
+#AgentGames
+
 ---
 
 zkVerify verifies the proof and aggregates it to Ethereum Sepolia.
@@ -80,6 +90,8 @@ Before paying, the vault rebuilds the statement leaf itself and calls zkVerify's
 
 It also refuses replays: same bounty, PR, claim or proof → revert.
 
+#AgentGames
+
 [image: thread-images/05-payment.png — the payment the vault released after checking both proofs]
 
 ---
@@ -87,6 +99,8 @@ It also refuses replays: same bounty, PR, claim or proof → revert.
 Fun bug from the live run: Kurier's status sat at "Aggregated" for over an hour, but the root was already on Sepolia.
 
 Fix: the agent stops trusting the status field and asks the chain directly. Verify, don't trust, applies to your own infra too.
+
+#AgentGames
 
 ---
 
@@ -97,17 +111,21 @@ Funded → PR detected → reviewed → zkTLS proven → mandate proven on zkVer
 The receipt shows every proof:
 https://mandate-bounty-agent.vercel.app/receipts/1
 
+#AgentGames
+
 [image: thread-images/03-receipt.png — the public receipt: "Paid, and proven." with the verified seal]
 
 ---
 
-What it does NOT prove, honestly:
+What it does NOT prove:
 • that the code is good (that's the LLM's advisory job)
 • that the payee controls the wallet (only that the PR author wrote it)
 
 Testnet only, single-party trusted setup.
 
-But "the agent paid within the rules" is now checkable, not a promise.
+But "it paid within the rules" is now checkable, not a promise.
+
+#AgentGames
 
 ---
 
