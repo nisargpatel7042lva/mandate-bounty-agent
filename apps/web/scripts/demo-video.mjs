@@ -1,10 +1,11 @@
-/* global process, console, window, document, requestAnimationFrame, performance */
+/* global process, console, window, document, requestAnimationFrame, performance, fetch, Buffer */
 // Records the narrated demo video from the live site.
-//  1. Speaks each scene's narration with Windows text-to-speech (System.Speech) into a WAV.
+//  1. Speaks each scene's narration into a WAV: Sarvam AI's text-to-speech when SARVAM_API_KEY is set
+//     (model SARVAM_MODEL, default bulbul:v3; voice SARVAM_SPEAKER, default shubh), else Windows System.Speech.
 //  2. Drives the live site with Playwright at 1920×1080, holding each scene as long as its narration,
 //     with the narration as an on-screen caption.
 //  3. Lays the WAVs at each scene's start time and muxes everything into an H.264 MP4 with ffmpeg.
-// Usage (from apps/web, Windows):  node scripts/demo-video.mjs [baseUrl]
+// Usage (from apps/web):  node --env-file-if-exists=../../.env scripts/demo-video.mjs [baseUrl]
 // Output: <repo>/demo/mandate-bounty-agent-demo.mp4 (git-ignored; upload it to YouTube or X).
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -230,15 +231,38 @@ const CAPTION_SCRIPT = () => {
 
 // ── 1. narration audio ──
 const ffprobe = (f) => Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]).toString().trim());
+const SARVAM_KEY = process.env.SARVAM_API_KEY;
+async function sarvam(text, wav) {
+  const res = await fetch("https://api.sarvam.ai/text-to-speech", {
+    method: "POST",
+    headers: { "api-subscription-key": SARVAM_KEY, "content-type": "application/json" },
+    body: JSON.stringify({
+      text,
+      language_code: "en-IN",
+      model: process.env.SARVAM_MODEL ?? "bulbul:v3",
+      speaker: process.env.SARVAM_SPEAKER ?? "shubh",
+      pace: Number(process.env.SARVAM_PACE ?? 1.0),
+      speech_sample_rate: 48000,
+    }),
+  });
+  if (!res.ok) throw new Error(`Sarvam TTS ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const { audios } = await res.json();
+  writeFileSync(wav, Buffer.from(audios.join(""), "base64"));
+}
+console.log(SARVAM_KEY ? `voice: Sarvam ${process.env.SARVAM_MODEL ?? "bulbul:v3"} / ${process.env.SARVAM_SPEAKER ?? "shubh"}` : "voice: Windows System.Speech");
 for (const s of SCENES) {
   const wav = path.join(work, `${s.id}.wav`);
-  const txt = path.join(work, `${s.id}.txt`);
-  writeFileSync(txt, s.say);
-  execFileSync("powershell", [
-    "-NoProfile",
-    "-Command",
-    `Add-Type -AssemblyName System.Speech; $s=New-Object System.Speech.Synthesis.SpeechSynthesizer; $s.SelectVoice('Microsoft David Desktop'); $s.Rate=-1; $s.SetOutputToWaveFile('${wav}'); $s.Speak([IO.File]::ReadAllText('${txt}')); $s.Dispose()`,
-  ]);
+  if (SARVAM_KEY) {
+    await sarvam(s.say, wav);
+  } else {
+    const txt = path.join(work, `${s.id}.txt`);
+    writeFileSync(txt, s.say);
+    execFileSync("powershell", [
+      "-NoProfile",
+      "-Command",
+      `Add-Type -AssemblyName System.Speech; $s=New-Object System.Speech.Synthesis.SpeechSynthesizer; $s.SelectVoice('Microsoft David Desktop'); $s.Rate=-1; $s.SetOutputToWaveFile('${wav}'); $s.Speak([IO.File]::ReadAllText('${txt}')); $s.Dispose()`,
+    ]);
+  }
   s.wav = wav;
   s.audio = ffprobe(wav);
   console.log(`tts ${s.id.padEnd(9)} ${s.audio.toFixed(1)} s`);
@@ -298,3 +322,18 @@ writeFileSync(list, clips.map((c) => `file '${c.replace(/\\/g, "/")}'`).join("\n
 execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy", "-movflags", "+faststart", mp4]);
 const total = SCENES.reduce((n, s) => n + (s.end - s.start), 0);
 console.log(`\nsaved ${mp4} (${total.toFixed(1)} s)`);
+
+// X-length cut (≤ 2:20, under 10 MB): drop the scenes the thread already covers
+const X_DROP = new Set(["method", "listings", "mandate", "review"]);
+const xList = path.join(work, "x-clips.txt");
+writeFileSync(xList, SCENES.filter((s) => !X_DROP.has(s.id)).map((s) => `file '${path.join(work, `clip-${s.id}.mp4`).replace(/\\/g, "/")}'`).join("\n"));
+const xJoined = path.join(work, "x-full.mp4");
+execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", xList, "-c", "copy", xJoined]);
+const xMp4 = path.join(out, "mandate-bounty-agent-demo-x.mp4");
+execFileSync("ffmpeg", [
+  "-v", "error", "-y", "-i", xJoined,
+  "-vf", "scale=1280:720:flags=lanczos",
+  "-c:v", "libx264", "-preset", "slow", "-tune", "stillimage", "-crf", "24", "-maxrate", "1000k", "-bufsize", "2000k", "-pix_fmt", "yuv420p", "-r", "30",
+  "-c:a", "aac", "-b:a", "128k", "-ac", "1", "-movflags", "+faststart", xMp4,
+]);
+console.log(`saved ${xMp4} (${ffprobe(xMp4).toFixed(1)} s)`);
