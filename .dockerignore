@@ -14,3 +14,4 @@ packages/circuits/build
 **/test-results
 **/playwright-report
 .git
+!apps/agent/seed/mandate-bounty.sqlite
