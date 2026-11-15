@@ -18,7 +18,6 @@ const out = path.join(root, "demo");
 const work = path.join(out, "work");
 mkdirSync(work, { recursive: true });
 
-const RECEIPT_TX = "https://sepolia.etherscan.io/tx/0x53cac6e8e6c9f74bb67e4e651815b7a3f6f058536cebacfa8f5856ce59b88c4a#eventlog";
 const ZKV_TX = "https://zkverify-testnet.subscan.io/extrinsic/0x867ef853b1f1f6ff4729883337c749e66812d968c550bcfd20044ae14391c6fe";
 
 /** Each scene: what to say, and what to do on screen while it is said. */
@@ -26,17 +25,21 @@ const SCENES = [
   {
     id: "title",
     say: "Mandate Bounty Agent. An AI agent that pays open-source bounties, where the language model proposes, and the proofs dispose.",
-    run: async (p) => {
+    go: async (p) => {
       await p.setContent(TITLE_CARD("The LLM proposes.", "The proofs dispose."), { waitUntil: "networkidle" });
     },
+    run: async (p) => p.waitForTimeout(500),
   },
   {
     id: "hook",
     say: "Here's the problem. Bounties are paid on trust, and handing that job to an AI makes it riskier. The model reads the pull request, and the pull request can contain text written to fool it. So in this design, the AI can recommend, but it can never pay.",
-    run: async (p) => {
+    go: async (p) => {
       await p.goto(base, { waitUntil: "networkidle" });
-      await p.waitForTimeout(1200);
-      await sweepMouse(p, 5200);
+      await p.waitForTimeout(2500); // let the particles settle into the ring first
+    },
+    run: async (p) => {
+      await p.waitForTimeout(3000);
+      await sweepMouse(p, 3600);
     },
   },
   {
@@ -59,20 +62,24 @@ const SCENES = [
   {
     id: "mandate",
     say: "Creating a bounty sets a mandate: the most one payout can be, a total budget, which wallets may be paid, and an expiry. The vault stores it with a commitment that every payout proof must match.",
-    run: async (p) => {
+    go: async (p) => {
       await p.goto(`${base}/bounties/new`, { waitUntil: "networkidle" });
-      await p.waitForTimeout(1500);
+      await p.waitForTimeout(1200);
+    },
+    run: async (p) => {
+      await p.waitForTimeout(2500);
       await smoothScrollBy(p, 700, 4000);
     },
   },
   {
     id: "rail",
     say: "Here is bounty number one. A merged pull request closed its issue. The rail shows each stage: funded, merged, reviewed, merge proven, mandate proven, and paid.",
-    run: async (p) => {
+    go: async (p) => {
       await p.goto(`${base}/bounties/1`, { waitUntil: "networkidle" });
       await p.getByTestId("status").waitFor();
-      await p.waitForTimeout(2500);
+      await p.waitForTimeout(800);
     },
+    run: async (p) => p.waitForTimeout(2500),
   },
   {
     id: "review",
@@ -93,41 +100,53 @@ const SCENES = [
   {
     id: "zkverify",
     say: "The second proof is a Groth16 circuit. It proves the payout fits the mandate. The trick: zkVerify can't check zero-knowledge TLS directly, so the TLS claim ID goes inside this proof. One proof on zkVerify now covers both.",
-    run: async (p) => {
+    go: async (p) => {
       await p.goto(`${base}/receipts/1`, { waitUntil: "networkidle" });
       await p.getByTestId("receipt").waitFor();
-      await p.waitForTimeout(1600);
-      await smoothScrollTo(p, ".r-sec:nth-of-type(5)", 3000, -120);
-      await p.waitForTimeout(1500);
+      await p.waitForTimeout(800);
+    },
+    run: async (p) => {
+      await p.waitForTimeout(2200);
+      await smoothScrollTo(p, ".r-sec:nth-of-type(5)", 3000, -40);
     },
   },
   {
     id: "explorer",
     say: "Here it is on the zkVerify explorer, verified and aggregated to Sepolia.",
-    run: async (p) => {
-      await p.goto(ZKV_TX, { waitUntil: "domcontentloaded" }).catch(() => {});
-      await p.waitForTimeout(3500);
+    go: async (p) => {
+      await p.goto(ZKV_TX, { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
+      await p.waitForTimeout(5000);
+      // if the explorer didn't render the extrinsic (bot check, slow load), stay on the receipt instead
+      const shown = await p.evaluate(() => /0x867ef853/i.test(document.body?.innerText ?? "")).catch(() => false);
+      if (!shown) {
+        await p.goto(`${base}/receipts/1`, { waitUntil: "networkidle" });
+        await smoothScrollTo(p, ".r-sec:nth-of-type(5)", 10, -40);
+      }
     },
+    run: async (p) => p.waitForTimeout(1500),
   },
   {
     id: "payment",
     say: "Before paying, the vault rebuilds the proof's statement and checks it against zkVerify's contract on chain. It matched, so the vault paid two hundred and fifty test USDC. The same pull request, claim or proof can never be paid twice.",
+    // Etherscan puts headless browsers behind a Cloudflare check, so show the receipt's payment section
+    go: async (p) => {
+      await p.goto(`${base}/receipts/1`, { waitUntil: "networkidle" });
+      await p.getByTestId("receipt").waitFor();
+    },
     run: async (p) => {
-      const ok = await p.goto(RECEIPT_TX, { waitUntil: "domcontentloaded" }).then(() => true).catch(() => false);
-      await p.waitForTimeout(ok ? 4000 : 0);
-      if (!ok || /Just a moment|Attention Required/i.test(await p.title())) {
-        await p.goto(`${base}/receipts/1`, { waitUntil: "networkidle" });
-        await smoothScrollTo(p, ".r-sec:nth-of-type(1)", 2000, -140);
-      }
+      await smoothScrollTo(p, ".r-sec:nth-of-type(1)", 2600, -140);
+      await p.waitForTimeout(2500);
     },
   },
   {
     id: "close",
     say: "Anyone can check this receipt without trusting me or the agent. It's testnet only, and it doesn't prove the code is good. That's what the review is for. But whether the agent paid within the rules is now provable. The code is public. Built for Agent Games on zkVerify.",
-    run: async (p) => {
+    go: async (p) => {
       await p.goto(`${base}/receipts/1`, { waitUntil: "networkidle" });
       await p.getByTestId("receipt").waitFor();
-      await p.waitForTimeout(4500);
+    },
+    run: async (p) => {
+      await p.waitForTimeout(6500);
       await p.setContent(TITLE_CARD("Paid,", "and proven.", "mandate-bounty-agent.vercel.app · github.com/nisargpatel7042lva/mandate-bounty-agent · #AgentGames"), { waitUntil: "networkidle" });
     },
   },
@@ -205,6 +224,7 @@ const CAPTION_SCRIPT = () => {
       document.documentElement.appendChild(el);
     }
     el.textContent = text;
+    el.style.display = text ? "block" : "none";
   };
 };
 
@@ -235,6 +255,9 @@ let caption = "";
 const showCaption = () => page.evaluate((t) => window.__cap?.(t), caption).catch(() => {});
 page.on("domcontentloaded", showCaption);
 for (const s of SCENES) {
+  caption = "";
+  await page.evaluate(() => document.getElementById("__cap")?.remove()).catch(() => {});
+  if (s.go) await s.go(page);
   s.start = (Date.now() - t0) / 1000;
   caption = s.say;
   await page.evaluate(CAPTION_SCRIPT).catch(() => {});
@@ -245,31 +268,33 @@ for (const s of SCENES) {
   await showCaption();
   const left = s.audio + 0.6 - (Date.now() - began) / 1000;
   if (left > 0) await page.waitForTimeout(left * 1000);
-  console.log(`scene ${s.id.padEnd(9)} start ${s.start.toFixed(1)} s`);
+  s.end = (Date.now() - t0) / 1000;
+  console.log(`scene ${s.id.padEnd(9)} ${s.start.toFixed(1)}–${s.end.toFixed(1)} s`);
 }
-const total = (Date.now() - t0) / 1000;
 const video = await page.video().path();
 await context.close();
 await browser.close();
 
-// ── 3. mux: each WAV delayed to its scene start, mixed, then joined with the video ──
-const inputs = ["-i", video];
-const filters = [];
-SCENES.forEach((s, i) => {
-  inputs.push("-i", s.wav);
-  const ms = Math.round(s.start * 1000);
-  filters.push(`[${i + 1}:a]adelay=${ms}|${ms},apad[a${i}]`);
-});
-filters.push(`${SCENES.map((_, i) => `[a${i}]`).join("")}amix=inputs=${SCENES.length}:normalize=0,atrim=0:${total.toFixed(2)}[aout]`);
+// ── 3. cut one clip per scene (only while it is narrated: page loads never show), add its audio, join ──
 const mp4 = path.join(out, "mandate-bounty-agent-demo.mp4");
-execFileSync("ffmpeg", [
-  "-y", ...inputs,
-  "-filter_complex", filters.join(";"),
-  "-map", "0:v", "-map", "[aout]",
-  "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30",
-  "-c:a", "aac", "-b:a", "160k",
-  "-t", total.toFixed(2),
-  "-movflags", "+faststart",
-  mp4,
-], { stdio: "inherit" });
+const clips = [];
+for (const s of SCENES) {
+  const clip = path.join(work, `clip-${s.id}.mp4`);
+  const len = (s.end - s.start).toFixed(3);
+  execFileSync("ffmpeg", [
+    "-v", "error", "-y",
+    "-ss", s.start.toFixed(3), "-t", len, "-i", video,
+    "-i", s.wav,
+    "-filter_complex", `[1:a]aresample=48000,apad,atrim=0:${len}[a]`,
+    "-map", "0:v", "-map", "[a]",
+    "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30",
+    "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2",
+    clip,
+  ]);
+  clips.push(clip);
+}
+const list = path.join(work, "clips.txt");
+writeFileSync(list, clips.map((c) => `file '${c.replace(/\\/g, "/")}'`).join("\n"));
+execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy", "-movflags", "+faststart", mp4]);
+const total = SCENES.reduce((n, s) => n + (s.end - s.start), 0);
 console.log(`\nsaved ${mp4} (${total.toFixed(1)} s)`);
