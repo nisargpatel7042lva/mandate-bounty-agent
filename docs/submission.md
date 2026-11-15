@@ -1,6 +1,6 @@
 # Agent Games: Wildcard submission
 
-Copy-paste source for the submission form. Links marked TODO are filled in once the agent is on Fly.
+Copy-paste source for the submission form (submitted 2026-11-14, Wildcard).
 
 **Agent name:** Mandate Bounty Agent
 
@@ -11,7 +11,8 @@ and prove the payout stays inside the funder's mandate. The LLM proposes, the pr
 
 - Repository: https://github.com/nisargpatel7042lva/mandate-bounty-agent
 - Live app: https://mandate-bounty-agent.vercel.app
-- Agent endpoint: https://mandate-bounty-agent.fly.dev (TODO: confirm once deployed; `GET /health`, `GET /bounties`)
+- Agent endpoint (submitted): https://mandate-bounty-agent.vercel.app/api/agent (always on; reads payouts live from the vault)
+- Full agent API: https://mandate-bounty-agent.onrender.com (`GET /health`, `GET /bounties`, `GET /bounties/:id/proof`)
 - Live receipt of a real payout: https://mandate-bounty-agent.vercel.app/receipts/1
 - zkVerify proof reference: https://zkverify-testnet.subscan.io/extrinsic/0x867ef853b1f1f6ff4729883337c749e66812d968c550bcfd20044ae14391c6fe
   (aggregation #270047, domain 0, published to Ethereum Sepolia)
@@ -69,7 +70,7 @@ but the vault releases funds only when two proofs check out.
 - **Verified against the real network.** zkVerify's statement for our proof equals the leaf computed
   by both the TypeScript agent and the Solidity vault. A shared test vector keeps all three in sync.
 - **Stack.** TypeScript monorepo: Hono agent with SQLite and viem; Next.js web; Circom/snarkjs;
-  Solidity/Foundry; Vitest and Playwright. The agent runs on Fly.io, the web on Vercel, and the
+  Solidity/Foundry; Vitest and Playwright. The agent runs on Render (free tier, kept awake by a GitHub Actions ping), the web on Vercel, and the
   contracts on Ethereum Sepolia.
 
 ## What it can and cannot do
