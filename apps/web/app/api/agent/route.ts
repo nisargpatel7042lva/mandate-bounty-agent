@@ -3,7 +3,7 @@
 // Each payout shows the zkTLS claim ID and the zkVerify leaf the vault checked before paying. When
 // the full agent (watcher + API) is reachable at NEXT_PUBLIC_AGENT_URL, its /health is included too.
 import { bountyVaultAbi } from "@mba/contracts";
-import { createPublicClient, http, type Address } from "viem";
+import { createPublicClient, fallback, http, type Address } from "viem";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,10 @@ async function agentHealth() {
 }
 
 async function status() {
-  const client = createPublicClient({ transport: http(RPC) });
+  // public Sepolia RPCs prune old logs at times; fall back to ones that keep full history
+  const client = createPublicClient({
+    transport: fallback([http(RPC), http("https://rpc.sepolia.ethpandaops.io"), http("https://sepolia.gateway.tenderly.co")]),
+  });
   const [count, logs, agent, agentSigner, vkHash] = await Promise.all([
     client.readContract({ address: VAULT, abi: bountyVaultAbi, functionName: "bountyCount" }),
     client.getContractEvents({ address: VAULT, abi: bountyVaultAbi, eventName: "PayoutReleased", fromBlock: DEPLOY_BLOCK }),
