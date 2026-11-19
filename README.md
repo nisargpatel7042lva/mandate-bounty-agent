@@ -41,7 +41,7 @@ The agent is allowed to **recommend** anything, but it can **pay** only what two
 The vault then checks the zkVerify aggregation **on-chain** before releasing a single token. The
 LLM's review (Gemini) is stored and shown, but the vault never reads it.
 
-## It works: live on Sepolia
+## It works: two live payouts on Sepolia
 
 Bounty #1 went from funded to paid in about five minutes, with no human step:
 
@@ -55,7 +55,17 @@ Bounty #1 went from funded to paid in about five minutes, with no human step:
 | Vault checks the aggregation on-chain and pays | [tx 0x53cac6e8…](https://sepolia.etherscan.io/tx/0x53cac6e8e6c9f74bb67e4e651815b7a3f6f058536cebacfa8f5856ce59b88c4a): `PayoutReleased` of 250 tUSDC, carrying the zkTLS claim ID and the zkVerify leaf |
 | Public receipt | [mandate-bounty-agent.vercel.app/receipts/1](https://mandate-bounty-agent.vercel.app/receipts/1) |
 
-Five more bounties are funded and open, waiting for merged PRs:
+Bounty #6 was paid the same way on 19 November, for a print stylesheet:
+
+| Step | Evidence |
+| --- | --- |
+| Merged [PR #9](https://github.com/nisargpatel7042lva/mba-demo/pull/9) closes [issue #8](https://github.com/nisargpatel7042lva/mba-demo/issues/8) | review: approve, confidence 98% |
+| zkTLS proof of the merge | claim ID `0x928237c6…2e77d7` |
+| Mandate proof verified on zkVerify | [extrinsic 0x0aca564f…](https://zkverify-testnet.subscan.io/extrinsic/0x0aca564f1d97dba3cbf831d917a2fab2fac59752c5bd035fd58b3df0d4dde4e4), aggregation #270052 |
+| Vault checks and pays 80 tUSDC | [tx 0x9bbfe599…](https://sepolia.etherscan.io/tx/0x9bbfe599d633e1b713943aa75cb1c48d1dfedcfafbec120ca1bec096336f9ead) |
+| Public receipt | [mandate-bounty-agent.vercel.app/receipts/6](https://mandate-bounty-agent.vercel.app/receipts/6) |
+
+Four more bounties are funded and open, waiting for merged PRs:
 
 | Bounty | Issue | Payout |
 | --- | --- | --- |
@@ -63,7 +73,6 @@ Five more bounties are funded and open, waiting for merged PRs:
 | #3 | [Dark mode that follows the system setting](https://github.com/nisargpatel7042lva/mba-demo/issues/5) | 150 tUSDC |
 | #4 | [Widgets jump while their images load](https://github.com/nisargpatel7042lva/mba-demo/issues/6) | 120 tUSDC |
 | #5 | [Lazy-load widgets below the fold](https://github.com/nisargpatel7042lva/mba-demo/issues/7) | 200 tUSDC |
-| #6 | [Print stylesheet for the widget grid](https://github.com/nisargpatel7042lva/mba-demo/issues/8) | 80 tUSDC |
 
 To claim one: open a PR that closes the issue, put `mba-payee: <your wallet>` in the PR description,
 and get it merged. The agent does the rest.
@@ -142,6 +151,10 @@ Being honest about the limits is part of the design:
 | Agent | TypeScript, Hono, SQLite (Drizzle), viem; Gemini for reviews (Claude also supported) |
 | Web | Next.js, a hand-written canvas particle hero, EIP-6963 wallet discovery |
 | Hosting | Web on Vercel, agent on Render (free tier, kept awake by a GitHub Actions ping) |
+
+The free Render instance has 512 MB of memory, which is not enough to generate the Reclaim zkTLS proof,
+so proving runs on a machine with more memory (bounty #6 was proven and paid by the same agent run
+locally). The vault's checks are identical wherever the agent runs; only the prover needs the memory.
 
 ## Repository layout
 
